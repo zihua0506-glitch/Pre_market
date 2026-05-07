@@ -1,0 +1,18 @@
+{
+  "market": {
+    "station": "ZSPD",
+    "description": "Shanghai Pudong Airport daily temperature high/low"
+  },
+  "contracts": {
+    "tmax": {
+      "bounds": ["eq", "le"],
+      "threshold_min": 10,
+      "threshold_max": 42
+    },
+    "tmin": {
+      "bounds": ["ge", "eq"],
+      "threshold_min": 3,
+      "threshold_max": 32
+    }
+  }
+}

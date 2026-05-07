@@ -1,0 +1,62 @@
+# Secrets / API keys
+kalshi.txt
+*.pem
+*.key
+secrets/
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data caches
+data/
+cache/
+database/
+*.db
+*.parquet
+*.feather
+*.nc
+*.grib
+*.grib2
+*.idx
+
+# Notebooks / one-off scripts
+.ipynb_checkpoints/
+notebooks/
+example.md
+ml/artifacts/v1/
+
+# Deprecated / sensitive
+core/sync_webdav.py
+clash-verge.yaml
+requirements_ml.txt
+
+# Memory / project management
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+

@@ -1,0 +1,40 @@
+
+==========================================================
+  BACKTEST RESULTS  2026-03-13 → 2026-04-28
+==========================================================
+  Total trades     : 4,930
+  Trading days     : 45
+  Total PnL        : $+330.47
+  Avg PnL/trade    : $+0.06703
+  Win rate         : 21.5%
+  Avg |model edge| : 0.2161
+  Realised edge    : +0.0670  (PnL per $1 bet)
+  Daily Sharpe     : 5.86
+  Max drawdown day : $-16.39
+
+By direction:
+  YES  n=2898  PnL= +72.60  WR=5.7%
+  NO   n=2032  PnL=+257.87  WR=44.0%
+
+By contract type:
+  ge   n= 147  PnL=  +4.41  WR=15.0%
+  le   n= 106  PnL=  -0.84  WR=1.9%
+  eq   n=4677  PnL=+326.90  WR=22.1%
+
+By kind (tmax/tmin):
+  tmax  n=3797  PnL=+292.25  WR=21.1%
+  tmin  n=1133  PnL= +38.22  WR=22.6%
+
+By time bucket:
+  cold_start    n= 490  PnL= +80.04  WR=40.2%  avgEdge=0.162
+  morning       n=1747  PnL=+110.65  WR=32.5%  avgEdge=0.207
+  daytime       n=1295  PnL= +97.56  WR=18.8%  avgEdge=0.228
+  evening       n=1398  PnL= +42.22  WR=3.7%  avgEdge=0.235
+
+By signal type:
+  certain   n=  50  PnL=+104.35  WR=100.0%  avgSize=50.00  avgEdge=0.165
+  model     n=4880  PnL=+226.12  WR=20.7%  avgSize=2.05  avgEdge=0.217
+
+Daily PnL summary:
+  mean=+7.344  std=19.907  min=-16.386  max=+61.038
+==========================================================
