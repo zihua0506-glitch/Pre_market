@@ -1,6 +1,6 @@
 [Unit]
 Description=Retry ZSPD archiver if last run failed
-ConditionPathExists=!/run/zspd-archiver-success
+ConditionPathExists=!/run/zspd-archiver/success
 
 [Service]
 Type=oneshot

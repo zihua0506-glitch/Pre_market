@@ -17,4 +17,5 @@ ExecStart=/opt/zspd-collector/.venv/bin/python -m archiver.main
 StandardOutput=append:/var/log/zspd-collector/archiver.log
 StandardError=append:/var/log/zspd-collector/archiver.err
 TimeoutStartSec=1800
-ExecStartPost=/bin/sh -c 'touch /run/zspd-archiver-success'
+RuntimeDirectory=zspd-archiver
+ExecStartPost=/bin/sh -c 'touch /run/zspd-archiver/success'
