@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ m.market_id }}{% endblock %}
+{% block content %}
+<h2>{{ m.city }} {{ m.contract_type }} threshold={{ m.threshold_c }}</h2>
+<p>{{ m.question }}<br><small>ends {{ m.end_date }} · slug {{ m.slug }}</small></p>
+
+<iframe src="{{ grafana_panel }}" width="100%" height="320" frameborder="0"></iframe>
+
+<h3>L2 (latest)</h3>
+{% for side in ("yes", "no") %}
+  <h4>{{ side }}</h4>
+  {% if l2[side] %}
+    <table><thead><tr><th>side</th><th>price</th><th>size</th></tr></thead><tbody>
+    {% for b in l2[side]["bids"] %}<tr><td>bid</td><td>{{ b[0] }}</td><td>{{ b[1] }}</td></tr>{% endfor %}
+    {% for a in l2[side]["asks"] %}<tr><td>ask</td><td>{{ a[0] }}</td><td>{{ a[1] }}</td></tr>{% endfor %}
+    </tbody></table>
+  {% else %}<p>no L2 yet</p>{% endif %}
+{% endfor %}
+
+<h3>Recent trades</h3>
+<table><thead><tr><th>ts</th><th>side</th><th>price</th><th>size</th></tr></thead><tbody>
+{% for t in trades %}
+  <tr><td>{{ t.ts }}</td><td>{{ t.side }}</td><td>{{ t.price }}</td><td>{{ t.size }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% endblock %}
