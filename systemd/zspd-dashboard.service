@@ -1,0 +1,20 @@
+[Unit]
+Description=ZSPD Polymarket dashboard (FastAPI)
+After=network-online.target zspd-collector.service victoriametrics.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=polymarket
+Group=polymarket
+WorkingDirectory=/opt/zspd-dashboard
+EnvironmentFile=/opt/zspd-dashboard/.env
+Environment=DASHBOARD_COLLECTOR_DB_DIR=/opt/zspd-collector/database
+Environment=DASHBOARD_WARM_DIR=/opt/zspd-collector/warm
+Environment=PYTHONPATH=/opt/zspd-dashboard/src
+ExecStart=/opt/zspd-dashboard/.venv/bin/python -m dashboard.main
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
