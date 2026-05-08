@@ -1,0 +1,26 @@
+[Unit]
+Description=Reverse SSH tunnel: dashboard 8090 -> artoria:8190 (for NPM proxy)
+After=network-online.target zspd-dashboard.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=polymarket
+Group=polymarket
+Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_POLL=60
+ExecStart=/usr/bin/autossh -M 0 -N \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -o ExitOnForwardFailure=yes \
+    -o BatchMode=yes \
+    -o StrictHostKeyChecking=accept-new \
+    -i /home/polymarket/.ssh/artoria_tunnel \
+    -p 2255 \
+    -R 127.0.0.1:8190:127.0.0.1:8090 \
+    chivier@185.219.142.9
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
