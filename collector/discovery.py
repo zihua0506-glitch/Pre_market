@@ -208,8 +208,15 @@ async def fetch_daily_temperature_events(cfg: Config, *, http: httpx.AsyncClient
     return out
 
 
-async def discover_once(cfg: Config) -> int:
-    """One full discovery pass. Returns count of markets upserted."""
+async def discover_once(
+    cfg: Config,
+    tokens_changed: asyncio.Event | None = None,
+) -> int:
+    """One full discovery pass. Returns count of markets upserted.
+
+    If *tokens_changed* is provided and any markets were saved/updated, the
+    event is set so that ``ws_loop`` knows to re-subscribe with the new list.
+    """
     db.init(cfg.db_dir)
     skipped = 0
     saved = 0
@@ -243,13 +250,19 @@ async def discover_once(cfg: Config) -> int:
                 )
                 saved += 1
     log.info("discovery: events=%d saved=%d skipped=%d", len(events), saved, skipped)
+    if tokens_changed is not None and saved > 0:
+        tokens_changed.set()
     return saved
 
 
-async def discovery_loop(cfg: Config, stop: asyncio.Event) -> None:
+async def discovery_loop(
+    cfg: Config,
+    stop: asyncio.Event,
+    tokens_changed: asyncio.Event | None = None,
+) -> None:
     while not stop.is_set():
         try:
-            await discover_once(cfg)
+            await discover_once(cfg, tokens_changed=tokens_changed)
         except Exception:
             log.exception("discovery pass failed; retrying in 5 min")
             try:

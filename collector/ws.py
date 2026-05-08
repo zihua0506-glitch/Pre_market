@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Iterable
+from typing import Callable, Iterable
 import websockets
 from collector.config import Config
 
@@ -87,22 +87,45 @@ def handle_message(store: LatestStore, raw: str) -> None:
             store.last_message_ts = time.time()
 
 
-async def ws_loop(cfg: Config, store: LatestStore, token_ids: Iterable[str], stop: asyncio.Event) -> None:
-    """Maintain WS connection with exponential backoff on disconnect."""
+async def ws_loop(
+    cfg: Config,
+    store: LatestStore,
+    lookup: Callable[[], list[str]],
+    stop: asyncio.Event,
+    tokens_changed: asyncio.Event,
+) -> None:
+    """Maintain WS connection with exponential backoff on disconnect.
+
+    Re-subscribes automatically when *tokens_changed* is set (e.g. discovery
+    found new markets).  The caller should pass a *lookup* callable that
+    returns the current flat list of token IDs.
+    """
     backoff = 1.0
     while not stop.is_set():
+        token_ids = lookup()
         try:
             async with websockets.connect(cfg.ws_url, ping_interval=20, ping_timeout=20) as wsc:
                 await wsc.send(json.dumps({
                     "type": "MARKET",
-                    "assets_ids": list(token_ids),
+                    "assets_ids": token_ids,
                 }))
                 store.connected = True
                 backoff = 1.0
+                # Spawn a watcher task; when tokens_changed fires it closes the
+                # WS connection so we break out of the recv loop and reconnect.
+                change_task = asyncio.create_task(tokens_changed.wait())
                 async for raw in wsc:
                     handle_message(store, raw)
                     if stop.is_set():
                         break
+                    if tokens_changed.is_set():
+                        await wsc.close()
+                        break
+                change_task.cancel()
+                try:
+                    await change_task
+                except (asyncio.CancelledError, Exception):
+                    pass
         except Exception as e:
             log.warning("ws disconnect: %s; reconnecting in %.1fs", e, backoff)
             store.connected = False
@@ -111,4 +134,10 @@ async def ws_loop(cfg: Config, store: LatestStore, token_ids: Iterable[str], sto
             except asyncio.TimeoutError:
                 pass
             backoff = min(backoff * 2, 60.0)
-    store.connected = False
+        finally:
+            store.connected = False
+
+        if tokens_changed.is_set():
+            tokens_changed.clear()
+            log.info("ws: tokens changed, re-subscribing")
+            # loop continues immediately (backoff not applied)
