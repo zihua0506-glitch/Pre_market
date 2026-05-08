@@ -3,20 +3,23 @@
 Single-page snapshot of where the system is **right now**. Read this first; the
 other docs are reference manuals.
 
-Last updated: 2026-05-08 (codebase modularized into common/ + strategy_math/ + clients/{data,trading}/ + ops/; pytest suite added; production wallet wired; strategy not yet started).
+Last updated: 2026-05-08 (collector + dashboard + archiver deployed on singapore; polymarket service-user migration complete on both servers; production wallet still wired and balance verified post-migration).
 
 ## TL;DR
 
 ```
-✅  Two-machine prod topology: singapore (archive + dashboard) + valkyrie (trade)
-✅  Daily systemd timers running on both (next: archive 16:30 UTC, hot-refresh 17:30 UTC)
+✅  Two-machine prod topology: singapore (collector + archive + dashboard) + valkyrie (trade)
+✅  Daily systemd timers running on both (archive 16:30 UTC, hot-refresh 17:30 UTC, archiver 03:00 UTC)
 ✅  Production wallet is the pre-existing Polymarket "DongYu." account
-✅  $2,021.23 USDC funded (live: 2021.233418), all 3 CLOB-spender allowances at max uint256
+✅  $2,021.23 USDC funded (live: 2021.233418, verified post user-migration), all 3 CLOB-spender allowances at max uint256
 ✅  CLOB API auth verified end-to-end (local Mac → valkyrie → Polymarket)
-✅  singapore→valkyrie one-way SSH push verified (key: SHA256:808lkjRZNhED2Qv7UA2EzcfKnZ9vzBhRtavuBBhuhvA)
-✅  singapore zspd-dashboard.service currently active (disabled-on-boot, brought up manually)
-✅  Codebase modularized: common/ + strategy_math/ + clients/{data,trading}/ + ops/
-✅  pytest tests/   →   97 passed in <1s   (offline; network-tier deferred)
+✅  All systemd units on both servers now run as `polymarket` (NOPASSWD systemctl/journalctl only)
+✅  zspd-collector.service on singapore: WS subscribed to ~2700 tokens across ~1360 daily-temperature markets (3s tick → VictoriaMetrics, 30 d retention)
+✅  victoriametrics.service + grafana-server.service on singapore (127.0.0.1:8428 / 127.0.0.1:3000)
+✅  zspd-dashboard.service rewritten — 4 routes (grid / market / strategy / replay) on 127.0.0.1:8090, bearer auth
+✅  zspd-archiver.timer + restart-timer deployed; round-trip parquet → WebDAV → restore.sh verified (md5 match)
+✅  Cold archive: driver.saber-ai.org/dav/Local/Polymarket/ via rclone (saber: remote)
+✅  Codebase: pytest tests/   →   97 + 39 new = 136 passed
 🟡  zspd-strategy.service on valkyrie is `static`, NOT STARTED — operator-gated
 🟡  Sizing tier not chosen yet (default unit file is Starter: size 0.5, max-per-slot 1, min-edge 0.08)
 ```
@@ -56,29 +59,34 @@ abandons the funds.
 
 ## Servers
 
-### `valkyrie` — root@204.168.241.66 (🇫🇮 FI Hetzner)
+### `valkyrie` — polymarket@204.168.241.66 (🇫🇮 FI Hetzner)
 | Aspect | Status |
 |---|---|
 | Polymarket geo | NOT blocked (POST /order works) |
 | Resources | 2 cores, 3.7 GB RAM + 2 GB swap (`/swapfile`, in fstab), 38 GB disk (5.2G used = 15%) |
-| Trading wallet `.env` | ✅ in sync with Mac (POLY_PRIVATE_KEY + creds + FUNDER + SIG_TYPE=1, FUNDER=0x65917b…dA58, CHAIN=137) |
-| `clob-proxy.service` | ✅ enabled, active (running) on 127.0.0.1:8088 (HTTP backend, used by Mac dev via SSH tunnel) |
-| `zspd-hot-refresh.timer` | ✅ enabled, active. Next fire: 2026-05-08 17:30 UTC (daily) |
-| `zspd-hot-refresh.service` | disabled, oneshot: `pipeline update` + `fetch_weather --forecast-only` |
-| `zspd-strategy.service` | 🟡 **static (no [Install]), NOT started** — `ssh valkyrie 'systemctl start zspd-strategy'` to go live |
+| Service user | `polymarket` (uid 1000), all `/opt/zspd-*` + `/opt/clob-proxy` chowned; sudo NOPASSWD scoped to systemctl/journalctl only |
+| Trading wallet `.env` | ✅ in sync with Mac (POLY_PRIVATE_KEY + creds + FUNDER + SIG_TYPE=1, FUNDER=0x65917b…dA58, CHAIN=137); now polymarket:polymarket 600 |
+| `clob-proxy.service` | ✅ enabled, active (running) **as polymarket** on 127.0.0.1:8088 (balance verified $2021.23 post-migration) |
+| `zspd-hot-refresh.timer` | ✅ enabled, active. Next fire: 2026-05-08 17:30 UTC (daily). Runs as polymarket. |
+| `zspd-strategy.service` | 🟡 **static (no [Install]), NOT started** — User=polymarket already configured. `ssh -F ssh/config val-pm 'sudo systemctl start zspd-strategy'` to go live. |
 | Models @ `src/ml/artifacts/v5/` | freshly trained 2026-05-08 03:23–03:29 UTC (8 .pkl + eval_metrics + cv_meta + feature_cols, ~45 MB) |
-| Latest code mtime | `src/strategies/modify_str.py` = 2026-05-08 07:35 UTC (most recent deploy) |
-| Disk usage `/opt/zspd-trader` | 647 MB |
+| SSH access from local Mac | `Host val-pm` in `ssh/config` (project-local), key `ssh/polymarket_ed25519` |
 
-### `singapore` — root@217.15.166.15 (🇸🇬 SG Contabo)
+### `singapore` — polymarket@217.15.166.15 (🇸🇬 SG Contabo)
 | Aspect | Status |
 |---|---|
 | Polymarket geo | BLOCKED for POST /order; GET endpoints OK |
 | Resources | 6 cores, 11 GB RAM, 193 GB disk (7.6G used = 4%); no swap |
-| Role | data archive + read-only dashboard. **NO training.** |
-| `zspd-archive.timer` | ✅ enabled, active. Next fire: 2026-05-08 18:30 CEST (= 16:30 UTC, daily) |
-| `zspd-archive.service` | static, oneshot: pipeline update + forecast-only + labels + features + push `daily_labels.db` to valkyrie + `snapshots/YYYY-MM-DD/` (14-day `--link-dest`) |
-| `zspd-dashboard.service` | disabled-on-boot but **currently active (running)** on 127.0.0.1:8090 — brought up manually. SSH-tunnel to view. |
+| Role | data archive + read-only dashboard + **all-cities collector**. **NO training.** |
+| Service user | `polymarket` (uid 1000), all `/opt/zspd-*` chowned; sudo NOPASSWD scoped to systemctl/journalctl only |
+| `zspd-archive.timer` | ✅ enabled, active (as polymarket). Next fire 16:30 UTC daily. archive.sh patched to use `/home/polymarket/.ssh/zspd_deploy`. |
+| `zspd-collector.service` | ✅ enabled, active (NEW). asyncio orchestrator: gamma discovery (24 h) + WS subscriber (3 s ticks) + L2 poller (5 min) + Prom `/metrics` on 127.0.0.1:8091. ~1360 markets across 30+ cities. |
+| `zspd-dashboard.service` | ✅ enabled, active (REWRITTEN). FastAPI on 127.0.0.1:8090 with 4 routes (grid / market / strategy / replay), bearer auth (`DASHBOARD_AUTH_TOKEN` in `.env`). |
+| `zspd-archiver.timer` | ✅ enabled, active (NEW). 03:00 UTC daily oneshot: VM + SQLite → parquet → rclone → WebDAV → cleanup (hot 30 d, warm 7 d). |
+| `zspd-archiver-restart.timer` | ✅ enabled, active. Retries archiver every 6 h until `/run/zspd-archiver/success` exists. |
+| `victoriametrics.service` | ✅ enabled, active (NEW). v1.142.0 single-binary, 127.0.0.1:8428, retention 30 d, scrapes collector at 3 s. |
+| `grafana-server.service` | ✅ enabled, active (NEW). v13.0.1, 127.0.0.1:3000, datasource = VictoriaMetrics, dashboard `ZSPD/ZSPD Overview` provisioned. |
+| Cold archive | rclone `saber:` → `https://driver.saber-ai.org/dav/Local/Polymarket/` (round-trip md5 verified). End-to-end smoke today: 423k price rows + 1360 markets snapshot uploaded. |
 | Old `zspd-retrain.timer/.service` | ❌ removed (verified absent from `/etc/systemd/system/`) |
 | Snapshots @ `/opt/zspd-trainer/snapshots/` | 1 day so far (`2026-05-08/`); will roll out to 14 |
 | Legacy artifacts @ `src/ml/artifacts/` | v0/v2/v3/v4/v5/ + `_history/20260508-v5/` (frozen, not used by valkyrie) |
