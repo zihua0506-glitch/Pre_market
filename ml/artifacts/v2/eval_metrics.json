@@ -1,0 +1,429 @@
+{
+  "version": "v2",
+  "evaluated_at": "2026-05-07T21:40:25Z",
+  "tmax": {
+    "test_from": "2026-03-01",
+    "n_test_rows": 3264,
+    "n_features": 35,
+    "point": {
+      "LightGBM-Q50": {
+        "MAE": 1.95,
+        "RMSE": 2.583,
+        "Bias": 1.328,
+        "Hit@1C": 0.406,
+        "Hit@2C": 0.574,
+        "Acc(settled)": 0.278
+      },
+      "LightGBM-L2": {
+        "MAE": 1.748,
+        "RMSE": 2.402,
+        "Bias": 1.061,
+        "Hit@1C": 0.449,
+        "Hit@2C": 0.672,
+        "Acc(settled)": 0.254
+      }
+    },
+    "quantile": {
+      "0.05": {
+        "coverage": 0.2454,
+        "pinball": 0.1884
+      },
+      "0.10": {
+        "coverage": 0.379,
+        "pinball": 0.3507
+      },
+      "0.25": {
+        "coverage": 0.5119,
+        "pinball": 0.5822
+      },
+      "0.50": {
+        "coverage": 0.7077,
+        "pinball": 0.9752
+      },
+      "0.75": {
+        "coverage": 0.7914,
+        "pinball": 0.7079
+      },
+      "0.90": {
+        "coverage": 0.8624,
+        "pinball": 0.4733
+      },
+      "0.95": {
+        "coverage": 0.9075,
+        "pinball": 0.334
+      }
+    },
+    "brier": [
+      {
+        "T": 10,
+        "freq": 0.971,
+        "brier": 0.0109
+      },
+      {
+        "T": 11,
+        "freq": 0.926,
+        "brier": 0.0152
+      },
+      {
+        "T": 12,
+        "freq": 0.882,
+        "brier": 0.0183
+      },
+      {
+        "T": 13,
+        "freq": 0.838,
+        "brier": 0.0303
+      },
+      {
+        "T": 14,
+        "freq": 0.735,
+        "brier": 0.0516
+      },
+      {
+        "T": 15,
+        "freq": 0.691,
+        "brier": 0.0511
+      },
+      {
+        "T": 16,
+        "freq": 0.676,
+        "brier": 0.043
+      },
+      {
+        "T": 17,
+        "freq": 0.574,
+        "brier": 0.0886
+      },
+      {
+        "T": 18,
+        "freq": 0.5,
+        "brier": 0.1232
+      },
+      {
+        "T": 19,
+        "freq": 0.412,
+        "brier": 0.153
+      },
+      {
+        "T": 20,
+        "freq": 0.353,
+        "brier": 0.1326
+      },
+      {
+        "T": 21,
+        "freq": 0.294,
+        "brier": 0.1138
+      },
+      {
+        "T": 22,
+        "freq": 0.235,
+        "brier": 0.0813
+      },
+      {
+        "T": 23,
+        "freq": 0.162,
+        "brier": 0.0715
+      },
+      {
+        "T": 24,
+        "freq": 0.147,
+        "brier": 0.0483
+      },
+      {
+        "T": 25,
+        "freq": 0.103,
+        "brier": 0.0447
+      },
+      {
+        "T": 26,
+        "freq": 0.074,
+        "brier": 0.0364
+      },
+      {
+        "T": 27,
+        "freq": 0.074,
+        "brier": 0.0426
+      },
+      {
+        "T": 28,
+        "freq": 0.044,
+        "brier": 0.0345
+      },
+      {
+        "T": 29,
+        "freq": 0.044,
+        "brier": 0.0385
+      }
+    ],
+    "bucket_mae": {
+      "Cold-start": {
+        "N": 1088,
+        "MAE": 2.7783
+      },
+      "Morning": {
+        "N": 544,
+        "MAE": 1.9903
+      },
+      "Daytime": {
+        "N": 612,
+        "MAE": 1.0095
+      },
+      "Evening": {
+        "N": 1020,
+        "MAE": 0.9614
+      }
+    },
+    "top15_features": [
+      {
+        "feature": "obs_tmax_so_far",
+        "importance": 839
+      },
+      {
+        "feature": "tmax_lag1",
+        "importance": 369
+      },
+      {
+        "feature": "obs_wind_now",
+        "importance": 300
+      },
+      {
+        "feature": "doy_sin",
+        "importance": 291
+      },
+      {
+        "feature": "obs_count",
+        "importance": 245
+      },
+      {
+        "feature": "obs_pressure_now",
+        "importance": 243
+      },
+      {
+        "feature": "tmin_roll7_std",
+        "importance": 231
+      },
+      {
+        "feature": "doy_cos",
+        "importance": 213
+      },
+      {
+        "feature": "obs_hour_frac",
+        "importance": 209
+      },
+      {
+        "feature": "tmax_roll7_std",
+        "importance": 200
+      },
+      {
+        "feature": "obs_temp_now",
+        "importance": 186
+      },
+      {
+        "feature": "tmax_lag3",
+        "importance": 156
+      },
+      {
+        "feature": "tmax_lag7",
+        "importance": 140
+      },
+      {
+        "feature": "tmax_roll7_mean",
+        "importance": 135
+      },
+      {
+        "feature": "obs_dew_mean",
+        "importance": 109
+      }
+    ]
+  },
+  "tmin": {
+    "test_from": "2026-03-01",
+    "n_test_rows": 3264,
+    "n_features": 35,
+    "point": {
+      "LightGBM-Q50": {
+        "MAE": 0.6,
+        "RMSE": 0.824,
+        "Bias": -0.125,
+        "Hit@1C": 0.847,
+        "Hit@2C": 0.966,
+        "Acc(settled)": 0.551
+      },
+      "LightGBM-L2": {
+        "MAE": 0.663,
+        "RMSE": 0.948,
+        "Bias": -0.358,
+        "Hit@1C": 0.801,
+        "Hit@2C": 0.95,
+        "Acc(settled)": 0.517
+      }
+    },
+    "quantile": {
+      "0.05": {
+        "coverage": 0.0288,
+        "pinball": 0.1251
+      },
+      "0.10": {
+        "coverage": 0.1559,
+        "pinball": 0.2083
+      },
+      "0.25": {
+        "coverage": 0.201,
+        "pinball": 0.2758
+      },
+      "0.50": {
+        "coverage": 0.3404,
+        "pinball": 0.3001
+      },
+      "0.75": {
+        "coverage": 0.4228,
+        "pinball": 0.2345
+      },
+      "0.90": {
+        "coverage": 0.6324,
+        "pinball": 0.1316
+      },
+      "0.95": {
+        "coverage": 0.7534,
+        "pinball": 0.0761
+      }
+    },
+    "brier": [
+      {
+        "T": 6,
+        "freq": 0.941,
+        "brier": 0.0196
+      },
+      {
+        "T": 7,
+        "freq": 0.868,
+        "brier": 0.0273
+      },
+      {
+        "T": 8,
+        "freq": 0.824,
+        "brier": 0.0235
+      },
+      {
+        "T": 9,
+        "freq": 0.75,
+        "brier": 0.0377
+      },
+      {
+        "T": 10,
+        "freq": 0.676,
+        "brier": 0.0283
+      },
+      {
+        "T": 11,
+        "freq": 0.618,
+        "brier": 0.0378
+      },
+      {
+        "T": 12,
+        "freq": 0.515,
+        "brier": 0.0412
+      },
+      {
+        "T": 13,
+        "freq": 0.412,
+        "brier": 0.0265
+      },
+      {
+        "T": 14,
+        "freq": 0.294,
+        "brier": 0.0674
+      },
+      {
+        "T": 15,
+        "freq": 0.162,
+        "brier": 0.0473
+      },
+      {
+        "T": 16,
+        "freq": 0.044,
+        "brier": 0.0219
+      }
+    ],
+    "bucket_mae": {
+      "Cold-start": {
+        "N": 1088,
+        "MAE": 0.8445
+      },
+      "Morning": {
+        "N": 544,
+        "MAE": 0.6458
+      },
+      "Daytime": {
+        "N": 612,
+        "MAE": 0.5614
+      },
+      "Evening": {
+        "N": 1020,
+        "MAE": 0.5402
+      }
+    },
+    "top15_features": [
+      {
+        "feature": "obs_tmin_so_far",
+        "importance": 1533
+      },
+      {
+        "feature": "doy_sin",
+        "importance": 566
+      },
+      {
+        "feature": "obs_hour_frac",
+        "importance": 501
+      },
+      {
+        "feature": "tmin_roll7_std",
+        "importance": 485
+      },
+      {
+        "feature": "tmax_roll7_std",
+        "importance": 440
+      },
+      {
+        "feature": "doy_cos",
+        "importance": 410
+      },
+      {
+        "feature": "obs_dew_mean",
+        "importance": 344
+      },
+      {
+        "feature": "tmax_lag1",
+        "importance": 334
+      },
+      {
+        "feature": "tmax_roll7_mean",
+        "importance": 326
+      },
+      {
+        "feature": "obs_wind_now",
+        "importance": 285
+      },
+      {
+        "feature": "tmax_lag6",
+        "importance": 277
+      },
+      {
+        "feature": "tmin_lag3",
+        "importance": 268
+      },
+      {
+        "feature": "tmin_roll3_mean",
+        "importance": 268
+      },
+      {
+        "feature": "tmax_lag2",
+        "importance": 260
+      },
+      {
+        "feature": "tmax_lag3",
+        "importance": 254
+      }
+    ]
+  }
+}
