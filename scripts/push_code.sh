@@ -13,6 +13,9 @@ RSYNC_SSH="ssh -F $SSH_CFG"
 TARGETS=()
 DRY_RUN=()
 RESTART=0
+DELETE=()  # opt-in via --purge; default is additive-only to avoid wiping
+           # files on val that we don't track locally (e.g. DEPLOYMENT.md
+           # before the docs/ rename, or legacy retrain.sh.disabled).
 
 for arg in "$@"; do
     case "$arg" in
@@ -21,6 +24,7 @@ for arg in "$@"; do
         both)                 TARGETS+=("val" "singapore") ;;
         --dry-run|-n)         DRY_RUN=("--dry-run" "--itemize-changes") ;;
         --restart)            RESTART=1 ;;
+        --purge)              DELETE=("--delete") ;;
         -h|--help)
             cat <<EOF
 Usage: $0 val|singapore|both [--dry-run] [--restart]
@@ -80,8 +84,8 @@ push_to() {
     esac
     for dest in "${paths[@]}"; do
         echo "==> $target  rsync -> $dest"
-        rsync -az --delete -e "$RSYNC_SSH" \
-            "${DRY_RUN[@]}" "${EXCLUDES[@]}" \
+        rsync -az -e "$RSYNC_SSH" \
+            "${DELETE[@]}" "${DRY_RUN[@]}" "${EXCLUDES[@]}" \
             "$REPO_ROOT/" "$host:$dest"
     done
     if [[ $RESTART -eq 1 && ${#DRY_RUN[@]} -eq 0 ]]; then
