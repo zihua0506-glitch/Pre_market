@@ -271,6 +271,35 @@ Rollback hooks at each step: §3 keeps a root-owned snapshot of `/opt/zspd-{trad
 ## 10. Open questions / known unknowns
 
 - **Polymarket WS rate limits** for subscribing to ~150 token IDs at once. Plan: subscribe in batches of 50 if a single subscription fails.
-- **gamma's exact tag scheme for weather** — relies on `tag=weather`, but slug-keyword fallback covers both. Confirm during discovery dry-run.
-- **clob-proxy systemd unit `User=polymarket` migration risk** — `.env` ownership change is the only material change; service binds 127.0.0.1:8088 either way. Verify with `curl /balance` post-migration.
+- **clob-proxy systemd unit `User=polymarket` migration risk** — `.env` ownership change is the only material change; service binds 127.0.0.1:8088 either way. Verify with `curl /balance` post-migration. ✅ resolved (balance unchanged $2021.23).
 - **tatapai key registration** — out of scope; user handles upload of public half.
+
+## 11. Implementation deviations (post-deploy reconciliation, 2026-05-08)
+
+The implementation diverged from §3–§7 in five places. They are intentional and durable; reconcile by reading this section as authoritative over the earlier wording.
+
+| # | Spec said | Implementation does | Why |
+|---|---|---|---|
+| 1 | gamma `?tag=weather` + slug-keyword classification (§3.1) | gamma `?tag_slug=daily-temperature` + event-tag-based classification (`classify_event_market`) | The `?tag=` query is unfiltered — it returned 1600+ unrelated events. `?tag_slug=daily-temperature` returns ~150 clean events. City and high/low live in event tags, not the slug. |
+| 2 | WebDAV path `/Local/Polymarket/` (§4 cold parquet) | Real WebDAV path is `/dav/Local/Polymarket/`. Rclone remote `saber:` baked the `/dav/` prefix into the URL on singapore. `.env`'s `WEBDAV_URL` updated to match. | Probed the WebDAV server: PROPFIND on `/` returned 405; on `/dav/` returned 207. |
+| 3 | sudoers `NOPASSWD: /bin/systemctl, /bin/journalctl, /opt/zspd-*/bin/*` (§6) | Narrower: `NOPASSWD: /bin/systemctl, /usr/bin/systemctl, /bin/journalctl, /usr/bin/journalctl` only | The wildcard on `/opt/zspd-*/bin/*` was speculative (no actual scripts there need root). Tightened scope. |
+| 4 | Dashboard bearer auth via `DASHBOARD_AUTH_TOKEN` (§3.2) | `DASHBOARD_AUTH_TOKEN` is unset; auth handled by NPM Basic Auth on `dashboard.tatapai.site`. Dashboard's bearer-auth dep still exists but is bypassed when token unset; startup now refuses unless `DASHBOARD_ALLOW_NO_AUTH=1` is also set (fail-closed default since fix F1). | Single-sign-on UX: one Basic Auth prompt at NPM, no need for browser header injection. NPM proxy host id=42 with access list id=1, Let's Encrypt cert id=7 (auto-renewed). |
+| 5 | Dashboard binds 127.0.0.1 only (§2 port allocation) | Plus a persistent autossh reverse tunnel `singapore:127.0.0.1:8090 → artoria:172.20.0.1:8190` (`zspd-dashboard-tunnel.service`), with pinned host key (post-C5 fix). NPM on artoria forwards `dashboard.tatapai.site` to the tunnel. | Spec didn't anticipate a public URL. NPM lives on artoria, singapore not on the artoria WG mesh, so a reverse tunnel is the cleanest path. UFW `allow from 172.20.0.0/16 to any port 8190` lets the NPM container reach the tunnel via the Docker bridge. |
+
+### 11.1 Additional post-soak fixes (2026-05-08)
+
+Code review found 12 latent issues; all fixed before hand-off:
+
+- **C1**: WS resubscribes when discovery upserts new tokens (was frozen at startup).
+- **C2**: `LatestStore.gc(keep)` prunes stale token entries each discovery pass (was unbounded).
+- **C4**: Archiver cleanup runs in `finally` even on empty-data days (was skipped).
+- **C5**: Tunnel SSH host key pinned in `~polymarket/.ssh/known_hosts` + `StrictHostKeyChecking=yes` (was TOFU).
+- **F1**: Dashboard refuses to start with no auth unless `DASHBOARD_ALLOW_NO_AUTH=1` set explicitly.
+- **F2**: htmx + alpine pinned with SRI hashes (Tailwind Play CDN doesn't support SRI by design).
+- **F3**: `/strategy` SSH client caches failures 5s, caps stdout at 256 KiB.
+- **F4**: Archiver writes `.warm_complete` marker; retries skip VM/SQLite re-export and only redo rclone.
+- **F5**: Archiver SQL identifier whitelist (`l2_snapshot/ts`, `trades/ts`).
+- **F6**: Discovery loop exponential backoff on failure (was fixed 5min).
+- **F7**: SQLite `wal_autocheckpoint=1000` set at `db.init()`.
+- **F8**: Dashboard SQLite reads use WAL + 10s timeout (no more locked-database stalls during L2 writes).
+- **F9**: `health_loop` writes 30s heartbeat to `/var/log/zspd-collector/health.log` (spec promised it; was never implemented before).
