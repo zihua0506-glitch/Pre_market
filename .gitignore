@@ -21,7 +21,7 @@ env/
 .ruff_cache/
 
 # Data caches
-data/
+/data/
 cache/
 *.feather
 *.nc
