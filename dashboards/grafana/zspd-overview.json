@@ -1,0 +1,44 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": "VictoriaMetrics",
+      "title": "YES mid (all markets)",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "pm_yes_mid", "legendFormat": "{{city}} {{contract_type}} {{market_id}}"}
+      ],
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "title": "Spread (yes_ask - yes_bid)",
+      "type": "timeseries",
+      "targets": [
+        {"expr": "pm_spread", "legendFormat": "{{city}} {{market_id}}"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10}
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "title": "WS connectivity",
+      "type": "stat",
+      "targets": [{"expr": "pm_ws_connected"}],
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 10}
+    },
+    {
+      "datasource": "VictoriaMetrics",
+      "title": "WS staleness (s)",
+      "type": "stat",
+      "targets": [{"expr": "pm_ws_stale_seconds"}],
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 10}
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["zspd", "polymarket"],
+  "timezone": "browser",
+  "title": "ZSPD Overview",
+  "uid": "zspd-overview",
+  "version": 1
+}
