@@ -46,8 +46,9 @@ core/sync_webdav.py
 clash-verge.yaml
 requirements_ml.txt
 
-# Memory / project management
-.claude/
+# Memory / project management — ignore everything under .claude/ EXCEPT skills/
+.claude/*
+!.claude/skills/
 
 # IDE
 .vscode/
