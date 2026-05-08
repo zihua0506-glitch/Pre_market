@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}replay{% endblock %}
+{% block content %}
+{% if date %}
+  <h2>{{ date }}</h2>
+  {% if rows %}
+    <table><thead><tr><th>market</th><th>ticks</th></tr></thead><tbody>
+    {% for r in rows %}<tr><td>{{ r.market_id }}</td><td>{{ r.n_ticks }}</td></tr>{% endfor %}
+    </tbody></table>
+  {% else %}<p>no data for {{ date }} (try <code>scripts/restore.sh {{ date }} {{ date }}</code>)</p>{% endif %}
+{% else %}
+  <h2>days available</h2>
+  {% if days %}<ul>{% for d in days %}<li><a href="/replay/{{ d }}">{{ d }}</a></li>{% endfor %}</ul>
+  {% else %}<p>no warm data yet</p>{% endif %}
+{% endif %}
+{% endblock %}
