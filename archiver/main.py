@@ -66,24 +66,40 @@ async def run() -> int:
     cfg = load()
     yesterday = date.today() - timedelta(days=1)
     out_dir = cfg.warm_dir / yesterday.isoformat()
+    warm_complete = out_dir / ".warm_complete"
     rc = 0
     try:
-        log.info("export VM ticks for %s", yesterday)
-        n_prices = await export_day(cfg.vm_url, yesterday, out_dir / "prices.parquet")
-        log.info("  %d price rows", n_prices)
-
-        n_ob = _dump_sqlite_to_parquet(cfg.db_dir / "orderbook.db",
-                                       "l2_snapshot", "ts", yesterday, out_dir / "orderbook.parquet")
-        log.info("  %d L2 rows", n_ob)
-        n_tr = _dump_sqlite_to_parquet(cfg.db_dir / "trades.db",
-                                       "trades", "ts", yesterday, out_dir / "trades.parquet")
-        log.info("  %d trade rows", n_tr)
-
-        if n_prices == 0 and n_ob == 0 and n_tr == 0:
-            log.warning("no data for %s; skipping cold sync", yesterday)
+        if warm_complete.exists():
+            log.info("warm parquet for %s already built; skipping rebuild", yesterday)
+            needs_rebuild = False
         else:
-            n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
-            log.info("  %d markets snapshot rows", n_mk)
+            needs_rebuild = True
+
+        if needs_rebuild:
+            log.info("export VM ticks for %s", yesterday)
+            n_prices = await export_day(cfg.vm_url, yesterday, out_dir / "prices.parquet")
+            log.info("  %d price rows", n_prices)
+
+            n_ob = _dump_sqlite_to_parquet(cfg.db_dir / "orderbook.db",
+                                           "l2_snapshot", "ts", yesterday, out_dir / "orderbook.parquet")
+            log.info("  %d L2 rows", n_ob)
+            n_tr = _dump_sqlite_to_parquet(cfg.db_dir / "trades.db",
+                                           "trades", "ts", yesterday, out_dir / "trades.parquet")
+            log.info("  %d trade rows", n_tr)
+
+            if n_prices == 0 and n_ob == 0 and n_tr == 0:
+                log.warning("no data for %s; skipping cold sync", yesterday)
+            else:
+                n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
+                log.info("  %d markets snapshot rows", n_mk)
+                # All dumps succeeded — mark warm tier as complete before rclone.
+                # Ensure out_dir exists (it may have been created by the dump helpers,
+                # but if all were no-ops, we still need it for the marker file).
+                out_dir.mkdir(parents=True, exist_ok=True)
+                warm_complete.touch()
+                _rclone_sync(out_dir, cfg.rclone_remote)
+        else:
+            # Warm parquets already written; only redo the rclone sync.
             _rclone_sync(out_dir, cfg.rclone_remote)
     except Exception:
         log.exception("archiver pipeline failed")
