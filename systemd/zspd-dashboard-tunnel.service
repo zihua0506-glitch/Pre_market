@@ -17,7 +17,7 @@ ExecStart=/usr/bin/autossh -M 0 -N \
     -o StrictHostKeyChecking=accept-new \
     -i /home/polymarket/.ssh/artoria_tunnel \
     -p 2255 \
-    -R 127.0.0.1:8190:127.0.0.1:8090 \
+    -R 172.20.0.1:8190:127.0.0.1:8090 \
     chivier@185.219.142.9
 Restart=on-failure
 RestartSec=15
