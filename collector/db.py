@@ -55,6 +55,10 @@ def init(db_dir: Path) -> None:
     for filename, ddl in _SCHEMAS.items():
         with sqlite3.connect(db_dir / filename) as conn:
             conn.executescript(ddl)
+            # WAL mode persists in the DB file; setting it once here is enough.
+            # Per-connection setting in connect() is kept as a safety net.
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA wal_autocheckpoint=1000")
 
 
 @contextmanager
