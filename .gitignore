@@ -23,14 +23,18 @@ env/
 # Data caches
 data/
 cache/
-database/
-*.db
-*.parquet
 *.feather
 *.nc
 *.grib
 *.grib2
 *.idx
+
+# Large / empty / deprecated database files
+database/data.db
+database/om_hourly.db
+database/zspd_merged.db
+database/csv/
+database/parquet/
 
 # Notebooks / one-off scripts
 .ipynb_checkpoints/
