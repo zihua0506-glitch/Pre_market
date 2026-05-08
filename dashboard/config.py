@@ -11,6 +11,7 @@ load_dotenv()
 @dataclass(frozen=True)
 class Config:
     auth_token: str = os.getenv("DASHBOARD_AUTH_TOKEN", "")
+    allow_no_auth: bool = bool(int(os.getenv("DASHBOARD_ALLOW_NO_AUTH", "0")))
     collector_url: str = os.getenv("DASHBOARD_COLLECTOR_URL", "http://127.0.0.1:8091")
     vm_url: str = os.getenv("DASHBOARD_VM_URL", "http://127.0.0.1:8428")
     grafana_url: str = os.getenv("DASHBOARD_GRAFANA_URL", "http://127.0.0.1:3000")

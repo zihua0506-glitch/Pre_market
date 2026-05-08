@@ -1,5 +1,6 @@
 """Dashboard FastAPI entrypoint."""
 from __future__ import annotations
+import logging
 import time
 from pathlib import Path
 import httpx
@@ -13,9 +14,18 @@ from dashboard.views import market as market_view
 from dashboard.views import strategy as strategy_view
 from dashboard.views import replay as replay_view
 
+log = logging.getLogger(__name__)
+
 
 def build_app() -> FastAPI:
     cfg = load()
+    if not cfg.auth_token and not cfg.allow_no_auth:
+        raise RuntimeError(
+            "DASHBOARD_AUTH_TOKEN unset and DASHBOARD_ALLOW_NO_AUTH != 1; "
+            "refusing to start with no authentication. Set one of them."
+        )
+    if cfg.allow_no_auth and not cfg.auth_token:
+        log.warning("WARNING: dashboard running with no authentication (DASHBOARD_ALLOW_NO_AUTH=1)")
     app = FastAPI(title="ZSPD Polymarket Dashboard")
     base = Path(__file__).parent
     static_dir = base / "static"
@@ -61,10 +71,25 @@ def build_app() -> FastAPI:
     return app
 
 
-app = build_app()
+def _get_app() -> FastAPI:
+    """Lazy singleton so importing this module doesn't call build_app() at
+    collection time (before pytest fixtures can set env vars)."""
+    global _app_instance
+    if _app_instance is None:
+        _app_instance = build_app()
+    return _app_instance
+
+
+_app_instance: FastAPI | None = None
+
+
+def __getattr__(name: str):
+    if name == "app":
+        return _get_app()
+    raise AttributeError(name)
 
 
 if __name__ == "__main__":
     import uvicorn
     cfg = load()
-    uvicorn.run(app, host=cfg.listen_host, port=cfg.listen_port)
+    uvicorn.run(_get_app(), host=cfg.listen_host, port=cfg.listen_port)
