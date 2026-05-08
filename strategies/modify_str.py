@@ -56,12 +56,13 @@ CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
 sys.path.insert(0, str(ROOT))
 
 from ml.config import LABELS_DB, WEATHER_OM_DB, WU_ZSPD_DB
+from common.orderbook import BookLevel, Order, OrderBook
 
 DATA_DB = ROOT / "database" / "data.db"
 CST     = timezone(timedelta(hours=8))
 
-# Import pure-computation helpers from backtest to stay consistent
-from ml.backtest.backtest import (
+# Strategy math lives in strategy_math/ — same source-of-truth as backtest.
+from strategy_math import (
     _calendar_features,
     _certainty_prob,
     _era5_slot_features,
@@ -86,25 +87,7 @@ class ContractPair:
     threshold_c:  int
 
 
-@dataclass
-class BookLevel:
-    price: float
-    size:  float
-
-
-@dataclass
-class OrderBook:
-    bids: list[BookLevel]   # sorted desc (highest bid first)
-    asks: list[BookLevel]   # sorted asc  (cheapest ask first)
-
-
-@dataclass
-class Order:
-    token_id:    str
-    side:        str    # 'BUY'
-    size:        float
-    limit_price: float
-    note:        str = ""
+# BookLevel / OrderBook / Order moved to common.orderbook (re-imported above).
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -247,12 +230,21 @@ def _book_mid(book: OrderBook) -> Optional[float]:
 
 def _prompt_manual(slot_h: float) -> Optional[float]:
     h, m = int(slot_h), int((slot_h % 1) * 60)
+    # Headless mode (no controlling tty, e.g. systemd / nohup) — skip the slot
+    # rather than crash on EOFError. Live trading must never crash-loop.
+    if not sys.stdin or not sys.stdin.isatty():
+        print(f"  [{h:02d}:{m:02d}] non-interactive (no tty); slot skipped.")
+        return None
     print(f"\n  ┌─ MANUAL INPUT REQUIRED ──────────────────────")
     print(f"  │  Temperature at {h:02d}:{m:02d} CST unavailable.")
     print(f"  │  Format: decimal °C  e.g. 24.5  /  Enter to skip.")
     print(f"  └───────────────────────────────────────────────")
     while True:
-        raw = input("  > ").strip()
+        try:
+            raw = input("  > ").strip()
+        except EOFError:
+            print("  EOF; slot skipped.")
+            return None
         if raw == "":
             print("  Slot skipped.")
             return None
@@ -701,6 +693,9 @@ def main(argv: list[str]) -> None:
                    help="Base position size in $ (default 1.0)")
     p.add_argument("--max-per-slot", type=int,   default=10,
                    help="Max model signals per half-hour slot (default 10)")
+    p.add_argument("--backend",      default="proxy", choices=["direct", "proxy"],
+                   help="direct = py-clob-client locally (needs unblocked IP); "
+                        "proxy = HTTP to clob-proxy server (default)")
     args = p.parse_args(argv[1:])
 
     target_date = (date.fromisoformat(args.date) if args.date
@@ -711,11 +706,24 @@ def main(argv: list[str]) -> None:
         book_fn  = _dry_run_book
         place_fn = _dry_run_place
     else:
-        raise NotImplementedError(
-            "Implement live order_book_fn and place_order_fn via py-clob-client.\n"
-            "Load credentials from .env: POLY_PRIVATE_KEY, POLY_API_KEY, "
-            "POLY_API_SECRET, POLY_API_PASSPHRASE."
-        )
+        if args.backend == "direct":
+            from strategies.clob_adapter import LiveClobBackend
+            backend = LiveClobBackend()
+        else:
+            from strategies.proxy_clob_adapter import ProxyClobBackend
+            backend = ProxyClobBackend()
+
+        print("┌─ LIVE MODE — REAL ORDERS WILL BE PLACED ─────────")
+        print(f"│  date={target_date}  version={args.version}  "
+              f"size=${args.size}  min_edge={args.min_edge}")
+        print(f"│  backend={args.backend}  "
+              f"{'url=' + backend.url if args.backend == 'proxy' else ''}")
+        print(f"│  ctrl-C now to abort. Starting in 5s ...")
+        print("└──────────────────────────────────────────────────")
+        time.sleep(5)
+
+        book_fn  = backend.get_book
+        place_fn = backend.place_order
 
     cfg = _load_config()
     strategy = ModelArbitrageStrategy(

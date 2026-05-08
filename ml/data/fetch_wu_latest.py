@@ -5,7 +5,7 @@ Data source: reuses core/fetch_zspd_history.py (same API key + schema).
 Manual fallback: tkinter dialog when API is unavailable or returns stale data.
 
 Flow:
-  1. Call core.fetch_zspd_history.fetch_day(today) → insert all of today's obs.
+  1. Call clients.data.wu.fetch_day(today) → insert all of today's obs.
   2. Read the target 30-min slot from standard.db.
   3. If slot is missing or > 90 min old → open manual input dialog.
   4. Manual input: returns raw (un-rounded) values which are then inserted.
@@ -66,15 +66,15 @@ def _slot_strings(slot_utc: datetime) -> tuple[str, str, str]:
     return ts_utc, ts_local, obs_date
 
 
-# ── WU fetch via core.fetch_zspd_history ───────────────────────────────────
+# ── WU fetch via clients.data.wu ───────────────────────────────────
 
 def refresh_today_wu() -> int:
     """
     Fetch ALL of today's WU ZSPD observations and upsert into standard.db.
-    Delegates entirely to core.fetch_zspd_history (same API key, same schema).
+    Delegates entirely to clients.data.wu (same API key, same schema).
     Returns the number of rows inserted/refreshed (0 = API failed).
     """
-    from core.fetch_zspd_history import fetch_day, init_db, to_row, INSERT_SQL
+    from clients.data.wu import fetch_day, init_db, to_row, INSERT_SQL
 
     today   = (datetime.now(timezone.utc) + SHANGHAI_OFFSET).date()
     session = requests.Session()
@@ -284,7 +284,7 @@ def insert_observation(obs: dict) -> bool:
     Uses the same table as core/fetch_zspd_history (compatible schema).
     Returns True if a new/updated row was written.
     """
-    from core.fetch_zspd_history import init_db
+    from clients.data.wu import init_db
 
     slot_utc = obs["slot_utc"]
     epoch    = int(slot_utc.timestamp())

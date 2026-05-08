@@ -45,6 +45,7 @@ CONFIG_PATH  = Path(__file__).resolve().parent / "config.json"
 sys.path.insert(0, str(ROOT))
 
 from ml.config import WU_ZSPD_DB
+from common.orderbook import BookLevel, Order, OrderBook
 
 DATA_DB = ROOT / "database" / "data.db"
 CST     = timezone(timedelta(hours=8))
@@ -59,28 +60,6 @@ class ContractMeta:
     kind:         str    # 'highest' (tmax) | 'lowest' (tmin)
     bound:        str    # 'ge' | 'le' | 'eq'
     threshold_c:  int
-
-
-@dataclass
-class BookLevel:
-    price: float   # token price ∈ (0, 1)
-    size:  float   # contracts available at this price
-
-
-@dataclass
-class OrderBook:
-    """Order book for a NO token."""
-    bids: list[BookLevel]   # NO buyers, sorted desc (highest bid first)
-    asks: list[BookLevel]   # NO sellers, sorted asc  (cheapest ask first) ← we eat these
-
-
-@dataclass
-class Order:
-    token_id:    str    # NO token_id
-    side:        str    # always 'BUY' in this strategy
-    size:        float
-    limit_price: float  # max price we pay for NO
-    note:        str = ""
 
 
 # ── Config ───────────────────────────────────────────────────────────────────

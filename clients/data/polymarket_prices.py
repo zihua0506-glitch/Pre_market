@@ -68,28 +68,85 @@ def fetch_prices_history(token_id, start_ts, end_ts):
     raise RuntimeError(f"prices-history 失败: {last_err}")
 
 
-def init_db(conn):
+def _migrate_token_meta_pk(conn) -> None:
+    """老库的 token_meta 没有 PRIMARY KEY，ON CONFLICT(token_id) 会报错。
+    检测到这种情况就重建表（保留旧数据，token_id 已验证唯一）。"""
+    info = conn.execute("PRAGMA table_info(token_meta)").fetchall()
+    if not info:
+        return  # 表不存在，让后续 CREATE TABLE 处理
+    has_pk = any(col[5] for col in info)  # col[5] is the pk flag
+    if has_pk:
+        return
     conn.executescript(
         """
-        CREATE TABLE IF NOT EXISTS price_minute (
-            token_id  TEXT NOT NULL,
-            ts        INTEGER NOT NULL,    -- UNIX 秒，分钟边界
-            price     REAL NOT NULL,        -- 概率 [0,1]
-            PRIMARY KEY (token_id, ts)
-        );
-        CREATE INDEX IF NOT EXISTS idx_price_minute_ts ON price_minute(ts);
-
-        CREATE TABLE IF NOT EXISTS token_meta (
+        DROP VIEW IF EXISTS v_minute_full;
+        CREATE TABLE token_meta__new (
             token_id      TEXT PRIMARY KEY,
-            side          TEXT NOT NULL,   -- 'YES' / 'NO'
+            side          TEXT NOT NULL,
             market_id     TEXT,
             event_id      TEXT,
             condition_id  TEXT,
             question      TEXT,
-            kind          TEXT,            -- highest / lowest
+            kind          TEXT,
             threshold_c   INTEGER,
-            bound         TEXT,            -- eq / le / ge
-            day_date      TEXT,            -- 观测日 YYYY-MM-DD
+            bound         TEXT,
+            day_date      TEXT,
+            market_start  TEXT,
+            market_end    TEXT,
+            n_minutes     INTEGER,
+            ts_start      INTEGER,
+            ts_end        INTEGER,
+            fetched_at    TEXT
+        );
+        INSERT OR IGNORE INTO token_meta__new
+            SELECT token_id, side, market_id, event_id, condition_id, question,
+                   kind, threshold_c, bound, day_date, market_start, market_end,
+                   n_minutes, ts_start, ts_end, fetched_at
+            FROM token_meta;
+        DROP TABLE token_meta;
+        ALTER TABLE token_meta__new RENAME TO token_meta;
+        CREATE INDEX IF NOT EXISTS idx_meta_day   ON token_meta(day_date);
+        CREATE INDEX IF NOT EXISTS idx_meta_event ON token_meta(event_id);
+        """
+    )
+    conn.commit()
+
+
+def init_db(conn):
+    """
+    Storage layout (compact schema):
+      token_map(id INT PK, token_id TEXT UNIQUE)        -- 长串 token_id → 小整数
+      price_minute_compact(token_id INT, ts INT, price INT)  -- price 是概率×1000
+      price_minute  -- view，对外暴露 (token_id TEXT, ts INT, price REAL[0..1])
+    """
+    _migrate_token_meta_pk(conn)
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS token_map (
+            id       INTEGER PRIMARY KEY,
+            token_id TEXT UNIQUE NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS price_minute_compact (
+            token_id INTEGER NOT NULL,
+            ts       INTEGER NOT NULL,
+            price    INTEGER NOT NULL,
+            PRIMARY KEY (token_id, ts)
+        );
+        CREATE INDEX IF NOT EXISTS idx_price_minute_compact_ts
+            ON price_minute_compact(ts);
+
+        CREATE TABLE IF NOT EXISTS token_meta (
+            token_id      TEXT PRIMARY KEY,
+            side          TEXT NOT NULL,
+            market_id     TEXT,
+            event_id      TEXT,
+            condition_id  TEXT,
+            question      TEXT,
+            kind          TEXT,
+            threshold_c   INTEGER,
+            bound         TEXT,
+            day_date      TEXT,
             market_start  TEXT,
             market_end    TEXT,
             n_minutes     INTEGER,
@@ -99,8 +156,31 @@ def init_db(conn):
         );
         CREATE INDEX IF NOT EXISTS idx_meta_day ON token_meta(day_date);
         CREATE INDEX IF NOT EXISTS idx_meta_event ON token_meta(event_id);
+        """
+    )
 
-        CREATE VIEW IF NOT EXISTS v_minute_full AS
+    # price_minute 在老库里是普通表、在新库里是 view。两种情况都不动它，
+    # 只在完全没有的时候新建 view。
+    row = conn.execute(
+        "SELECT type FROM sqlite_master WHERE name = 'price_minute'"
+    ).fetchone()
+    if row is None:
+        conn.execute(
+            """
+            CREATE VIEW price_minute AS
+            SELECT m.token_id AS token_id,
+                   p.ts       AS ts,
+                   p.price / 1000.0 AS price
+            FROM   price_minute_compact p
+            JOIN   token_map m ON m.id = p.token_id
+            """
+        )
+
+    # v_minute_full 依赖 price_minute（view 或 table 都能 JOIN），保持可重建
+    conn.executescript(
+        """
+        DROP VIEW IF EXISTS v_minute_full;
+        CREATE VIEW v_minute_full AS
         SELECT
             p.ts,
             datetime(p.ts, 'unixepoch') AS ts_iso,
@@ -112,6 +192,25 @@ def init_db(conn):
         """
     )
     conn.commit()
+
+
+def _resolve_token_int_id(conn, token_id_str: str) -> int:
+    """token.db 用的长串 token_id → token_map.id（小整数）。不存在则分配。"""
+    row = conn.execute(
+        "SELECT id FROM token_map WHERE token_id = ?", (token_id_str,)
+    ).fetchone()
+    if row is not None:
+        return row[0]
+    next_id = conn.execute(
+        "SELECT COALESCE(MAX(id), -1) + 1 FROM token_map"
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT OR IGNORE INTO token_map(id, token_id) VALUES (?, ?)",
+        (next_id, token_id_str),
+    )
+    return conn.execute(
+        "SELECT id FROM token_map WHERE token_id = ?", (token_id_str,)
+    ).fetchone()[0]
 
 
 def load_tokens(token_conn):
@@ -155,9 +254,13 @@ def upsert_token(dst, token_id, side, market_id, event_id, condition_id, questio
     cur = dst.cursor()
 
     if history:
+        int_id = _resolve_token_int_id(dst, token_id)
         cur.executemany(
-            "INSERT OR IGNORE INTO price_minute(token_id, ts, price) VALUES(?,?,?)",
-            [(token_id, int(h["t"]), float(h["p"])) for h in history if "t" in h and "p" in h],
+            "INSERT OR IGNORE INTO price_minute_compact(token_id, ts, price) VALUES(?,?,?)",
+            [
+                (int_id, int(h["t"]), int(round(float(h["p"]) * 1000)))
+                for h in history if "t" in h and "p" in h
+            ],
         )
         ts_start = int(history[0]["t"])
         ts_end = int(history[-1]["t"])

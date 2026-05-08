@@ -81,7 +81,7 @@ def _parse_version(args: list[str], default: str = "v0") -> str:
 # ── 1. Update standard.db ─────────────────────────────────────────────────
 
 def update_db(start: Optional[date] = None, end: Optional[date] = None) -> None:
-    from core.fetch_zspd_history import main as _wu_main
+    from clients.data.wu import main as _wu_main
     s = (start or DATA_START).strftime("%Y%m%d")
     e = (end   or DATA_END  ).strftime("%Y%m%d")
     print(f"\n[UpdateDB] Fetching WU ZSPD {s} → {e} ...")
@@ -90,8 +90,8 @@ def update_db(start: Optional[date] = None, end: Optional[date] = None) -> None:
 
 
 def update_market(days: int = 7) -> None:
-    from core.fetch_tokens import main as _fetch_tokens
-    from core.fetch_data import update_recent as _update_recent
+    from clients.data.polymarket_meta import main as _fetch_tokens
+    from clients.data.polymarket_prices import update_recent as _update_recent
 
     print("\n[UpdateMarket] 刷新 token 元数据 (gamma-api) ...")
     _fetch_tokens()
@@ -155,10 +155,10 @@ def run_train(version: str = "v0") -> None:
     print("[Train] Done.")
 
 
-def run_evaluate(version: str = "v0") -> None:
+def run_evaluate(version: str = "v0", json_path: Optional[str] = "auto") -> None:
     from ml.models.evaluate import evaluate_all
     print(f"\n[Evaluate] Evaluating on test set [{version}] ...")
-    evaluate_all(version)
+    evaluate_all(version, json_path=json_path)
     print("[Evaluate] Done.")
 
 

@@ -96,7 +96,7 @@ def _wait_for_wu(target_date: date, verbose: bool = True) -> bool:
 
 def step_fetch_wu(target_date: date) -> None:
     """拉取最新 WU 数据（两天窗口，保证 target_date 被覆盖）。"""
-    from core.fetch_zspd_history import main as _wu_main
+    from clients.data.wu import main as _wu_main
     start = (target_date - timedelta(days=1)).strftime("%Y%m%d")
     end   = target_date.strftime("%Y%m%d")
     print(f"\n[1/5] 拉取 WU 数据 {start} → {end} ...")
