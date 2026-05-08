@@ -20,7 +20,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, Callable
 import httpx
 from collector import db
 from collector.config import Config
@@ -211,15 +211,20 @@ async def fetch_daily_temperature_events(cfg: Config, *, http: httpx.AsyncClient
 async def discover_once(
     cfg: Config,
     tokens_changed: asyncio.Event | None = None,
+    prune: "Callable[[set[str]], None] | None" = None,
 ) -> int:
     """One full discovery pass. Returns count of markets upserted.
 
     If *tokens_changed* is provided and any markets were saved/updated, the
     event is set so that ``ws_loop`` knows to re-subscribe with the new list.
+
+    If *prune* is provided it is called with the set of all YES+NO token IDs
+    seen this pass, so the caller can GC stale entries from LatestStore.
     """
     db.init(cfg.db_dir)
     skipped = 0
     saved = 0
+    seen_token_ids: set[str] = set()
     async with httpx.AsyncClient() as http:
         events = await fetch_daily_temperature_events(cfg, http=http)
         for ev in events:
@@ -248,8 +253,12 @@ async def discover_once(
                     token_id_yes=str(tokens[0]),
                     token_id_no=str(tokens[1]),
                 )
+                seen_token_ids.add(str(tokens[0]))
+                seen_token_ids.add(str(tokens[1]))
                 saved += 1
     log.info("discovery: events=%d saved=%d skipped=%d", len(events), saved, skipped)
+    if prune is not None and seen_token_ids:
+        prune(seen_token_ids)
     if tokens_changed is not None and saved > 0:
         tokens_changed.set()
     return saved
@@ -259,10 +268,11 @@ async def discovery_loop(
     cfg: Config,
     stop: asyncio.Event,
     tokens_changed: asyncio.Event | None = None,
+    prune: "Callable[[set[str]], None] | None" = None,
 ) -> None:
     while not stop.is_set():
         try:
-            await discover_once(cfg, tokens_changed=tokens_changed)
+            await discover_once(cfg, tokens_changed=tokens_changed, prune=prune)
         except Exception:
             log.exception("discovery pass failed; retrying in 5 min")
             try:

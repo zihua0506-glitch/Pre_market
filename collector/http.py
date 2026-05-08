@@ -37,6 +37,9 @@ def build_app(store: LatestStore, markets_lookup: Callable[[], list[dict]]) -> F
 
     @app.get("/metrics")
     def metrics() -> PlainTextResponse:
+        # markets_lookup() returns only active markets; LatestStore.gc() removes
+        # stale token entries after each discovery pass, so Prometheus cardinality
+        # is bounded to the current active set.
         reg = CollectorRegistry()
         labels = ["market_id", "city", "contract_type"]
         g_yes_bid = Gauge("pm_yes_bid", "YES best bid", labels, registry=reg)

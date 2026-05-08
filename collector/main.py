@@ -38,10 +38,15 @@ async def main() -> None:
             ids += [m["token_id_yes"], m["token_id_no"]]
         return ids
 
+    def _prune(keep: set[str]) -> None:
+        removed = store.gc(keep)
+        if removed:
+            log.info("store.gc: removed %d stale token entries", removed)
+
     # Bootstrap discovery so we have markets for WS subscribe.
     # tokens_changed will be set here if any markets are saved; ws_loop will
     # see it on its first iteration, clear it, and subscribe.
-    await discovery.discover_once(cfg, tokens_changed=tokens_changed)
+    await discovery.discover_once(cfg, tokens_changed=tokens_changed, prune=_prune)
 
     log.info("subscribing to %d tokens", len(lookup_tokens()))
 
@@ -57,7 +62,9 @@ async def main() -> None:
         ),
         asyncio.create_task(l2.l2_loop(cfg, stop), name="l2"),
         asyncio.create_task(
-            discovery.discovery_loop(cfg, stop, tokens_changed=tokens_changed),
+            discovery.discovery_loop(
+                cfg, stop, tokens_changed=tokens_changed, prune=_prune
+            ),
             name="discovery",
         ),
     ]

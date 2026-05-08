@@ -59,6 +59,14 @@ class LatestStore:
             self._data[asset_id] = t
             self.last_message_ts = time.time()
 
+    def gc(self, keep: set[str]) -> int:
+        """Remove entries whose key is not in *keep*. Returns count removed."""
+        with self._lock:
+            stale = [k for k in self._data if k not in keep]
+            for k in stale:
+                del self._data[k]
+            return len(stale)
+
     def snapshot(self) -> dict[str, Tick]:
         with self._lock:
             return dict(self._data)

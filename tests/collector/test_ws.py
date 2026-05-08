@@ -1,5 +1,5 @@
 import json
-from collector.ws import LatestStore, handle_message
+from collector.ws import LatestStore, Tick, handle_message
 
 
 def test_handle_book_message_updates_latest():
@@ -44,3 +44,12 @@ def test_handle_unknown_event_is_noop():
     store = LatestStore()
     handle_message(store, json.dumps({"event_type": "??", "asset_id": "tok-1"}))
     assert store.snapshot() == {}
+
+
+def test_latest_store_gc_drops_unwanted_keys():
+    store = LatestStore()
+    for key in ("k1", "k2", "k3"):
+        store._data[key] = Tick(market_id="m")
+    removed = store.gc({"k1", "k3"})
+    assert removed == 1
+    assert set(store._data.keys()) == {"k1", "k3"}
