@@ -251,6 +251,13 @@ ssh singapore 'rsync -av /opt/zspd-trainer/ml/artifacts/_history/20260507-v5/ va
 ```
 .
 ├── src/                              full repo (data prep only; training is off-host)
+│   ├── common/                       env loader + dataclasses
+│   ├── strategy_math/                pure math (re-exported from backtest for legacy callers)
+│   ├── clients/data/                 was core/  — wu, open_meteo, polymarket_{meta,prices,orderbook,search}
+│   ├── clients/trading/              dryrun + base + (direct/proxy/server, lazily imported)
+│   ├── ops/                          wallet / preflight / proxy-deploy
+│   ├── strategies/                   modify_str + plain_as + adapter shims
+│   ├── ml/                           pipeline + models/{train,evaluate,predict} + backtest
 │   ├── database/                     ← archive.sh reads/writes here (~163 MB total)
 │   │   ├── standard.db (7.4M)   weather_om.db (4.7M)   daily_labels.db (140K)
 │   │   ├── data.db (146M)   iem_asos_zspd.db (4.1M)   intraday_features.parquet (840K)
@@ -315,6 +322,13 @@ SSH:
 ```
 .
 ├── src/                       full repo, used at runtime
+│   ├── common/                env loader + dataclasses (BookLevel/Order/OrderBook)
+│   ├── strategy_math/         pure math (certainty/features/labels/model_edge/sizing)
+│   ├── clients/data/          was core/ — module entry points used by hot-refresh.sh
+│   ├── clients/trading/       TradingBackend ABC + Direct/Proxy/DryRun
+│   ├── ops/                   wallet / preflight / proxy-deploy
+│   ├── strategies/            modify_str + plain_as + adapter subclasses
+│   ├── ml/                    pipeline + models + backtest
 │   ├── database/              ← hot DBs (refreshed daily by hot-refresh.sh)
 │   │     daily_labels.db (140K)  data.db (146M)  standard.db (7.4M)
 │   │     token.db (476K)         weather_om.db (4.7M)

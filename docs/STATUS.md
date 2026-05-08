@@ -3,7 +3,7 @@
 Single-page snapshot of where the system is **right now**. Read this first; the
 other docs are reference manuals.
 
-Last updated: 2026-05-08 (verified by live SSH inventory; production wallet wired up, strategy not yet started).
+Last updated: 2026-05-08 (codebase modularized into common/ + strategy_math/ + clients/{data,trading}/ + ops/; pytest suite added; production wallet wired; strategy not yet started).
 
 ## TL;DR
 
@@ -15,6 +15,8 @@ Last updated: 2026-05-08 (verified by live SSH inventory; production wallet wire
 ✅  CLOB API auth verified end-to-end (local Mac → valkyrie → Polymarket)
 ✅  singapore→valkyrie one-way SSH push verified (key: SHA256:808lkjRZNhED2Qv7UA2EzcfKnZ9vzBhRtavuBBhuhvA)
 ✅  singapore zspd-dashboard.service currently active (disabled-on-boot, brought up manually)
+✅  Codebase modularized: common/ + strategy_math/ + clients/{data,trading}/ + ops/
+✅  pytest tests/   →   97 passed in <1s   (offline; network-tier deferred)
 🟡  zspd-strategy.service on valkyrie is `static`, NOT STARTED — operator-gated
 🟡  Sizing tier not chosen yet (default unit file is Starter: size 0.5, max-per-slot 1, min-edge 0.08)
 ```
@@ -181,6 +183,22 @@ ssh valkyrie 'systemctl daemon-reload && systemctl restart zspd-strategy'
 4. **Dashboard UI** — singapore's `zspd-dashboard` is a skeleton. Build out `/api/positions`, `/api/pnl`, `/api/strategy/recent-signals` as you find what you actually want to monitor.
 
 ---
+
+## Code layout (post-refactor)
+
+```
+common/                 env loader + dataclasses
+strategy_math/          pure math (shared by backtest + live; was hidden in backtest.py)
+clients/data/           data acquisition + persistence (was core/)
+clients/trading/        order execution (TradingBackend ABC + Direct/Proxy/DryRun + FastAPI server)
+ops/                    wallet / preflight / proxy-deploy CLIs
+strategies/             thin orchestrators (modify_str, plain_as)
+ml/                     training + backtest engine
+scripts/                shell helpers + 5-line shims to ops/
+tests/                  pytest, 97 offline tests
+```
+
+See [`../CLAUDE.md`](../CLAUDE.md) "Package layout" for the file-by-file map.
 
 ## Pointers to the rest of the docs
 

@@ -44,7 +44,7 @@ ssh valkyrie  'journalctl -u zspd-strategy -f'
 
 ```bash
 # Today's GFS forecast (v5 needs sw_radiation / cloud_pct)
-python -m core.fetch_weather --forecast-only
+python -m clients.data.open_meteo --forecast-only
 
 # Refresh Polymarket token metadata + last 7d prices + last 2d WU obs
 python -m ml.pipeline update
@@ -133,7 +133,7 @@ python -m ml.models.evaluate --version v5         # evaluate only
 
 ```bash
 # Refetch WU history for a date range
-python -m core.fetch_zspd_history 20260331 20260331
+python -m clients.data.wu 20260331 20260331
 
 # Then rebuild labels + features
 python -m ml.pipeline labels && python -m ml.pipeline features
