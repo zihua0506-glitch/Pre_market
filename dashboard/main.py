@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from dashboard.auth import bearer_auth
 from dashboard.config import load
+from dashboard.views import grid as grid_view
 
 
 def build_app() -> FastAPI:
@@ -20,7 +21,7 @@ def build_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok"}
 
-    # Views are wired in later tasks (C2/C3/C4/C5).
+    app.include_router(grid_view.router, dependencies=[Depends(auth)])
     return app
 
 
