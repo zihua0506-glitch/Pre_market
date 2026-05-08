@@ -33,9 +33,9 @@ cache/
 *.grib2
 *.idx
 
-# Large / empty / deprecated database files
-database/om_hourly.db
-database/zspd_merged.db
+# Database — runtime sqlite files. The currently tracked database/*.db files
+# are test-backup snapshots; runtime modifications are ignored.
+database/*.db
 database/csv/
 database/parquet/
 
