@@ -14,7 +14,8 @@ ExecStart=/usr/bin/autossh -M 0 -N \
     -o ServerAliveCountMax=3 \
     -o ExitOnForwardFailure=yes \
     -o BatchMode=yes \
-    -o StrictHostKeyChecking=accept-new \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/home/polymarket/.ssh/known_hosts \
     -i /home/polymarket/.ssh/artoria_tunnel \
     -p 2255 \
     -R 172.20.0.1:8190:127.0.0.1:8090 \
