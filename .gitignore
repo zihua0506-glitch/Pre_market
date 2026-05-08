@@ -30,7 +30,6 @@ cache/
 *.idx
 
 # Large / empty / deprecated database files
-database/data.db
 database/om_hourly.db
 database/zspd_merged.db
 database/csv/
