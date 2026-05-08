@@ -264,22 +264,29 @@ async def discover_once(
     return saved
 
 
+_DISCOVERY_BACKOFF_INITIAL = 30.0
+_DISCOVERY_BACKOFF_MAX = 1800.0  # 30 minutes
+
+
 async def discovery_loop(
     cfg: Config,
     stop: asyncio.Event,
     tokens_changed: asyncio.Event | None = None,
     prune: "Callable[[set[str]], None] | None" = None,
 ) -> None:
+    backoff = _DISCOVERY_BACKOFF_INITIAL
     while not stop.is_set():
         try:
             await discover_once(cfg, tokens_changed=tokens_changed, prune=prune)
         except Exception:
-            log.exception("discovery pass failed; retrying in 5 min")
+            log.exception("discovery pass failed; retrying in %.0fs", backoff)
             try:
-                await asyncio.wait_for(stop.wait(), timeout=300.0)
+                await asyncio.wait_for(stop.wait(), timeout=backoff)
             except asyncio.TimeoutError:
                 pass
+            backoff = min(backoff * 2, _DISCOVERY_BACKOFF_MAX)
         else:
+            backoff = _DISCOVERY_BACKOFF_INITIAL  # reset on success
             try:
                 await asyncio.wait_for(stop.wait(), timeout=cfg.discovery_interval_s)
             except asyncio.TimeoutError:
