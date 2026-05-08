@@ -33,6 +33,39 @@ def test_health_route_unauthed_should_be_skipped_by_caller():
     pass
 
 
+def test_protected_route_returns_401_with_no_header():
+    r = TestClient(_app("secret")).get("/x")
+    assert r.status_code == 401
+
+
+def test_protected_route_returns_401_with_wrong_token():
+    r = TestClient(_app("secret")).get("/x", headers={"Authorization": "Bearer wrong"})
+    assert r.status_code == 401
+
+
+def test_protected_route_returns_200_with_correct_token():
+    r = TestClient(_app("secret")).get("/x", headers={"Authorization": "Bearer secret"})
+    assert r.status_code == 200
+
+
+def test_health_route_is_unprotected_when_auth_configured():
+    """build_app() /health must return 200 even without a bearer token."""
+    from dashboard.main import build_app
+    import importlib
+    import dashboard.config as dcfg
+    import dashboard.main as dmain
+    import os
+    # Set a token so auth is configured
+    os.environ["DASHBOARD_AUTH_TOKEN"] = "secret"
+    os.environ["DASHBOARD_ALLOW_NO_AUTH"] = "0"
+    importlib.reload(dcfg)
+    importlib.reload(dmain)
+    app = dmain.build_app()
+    client = TestClient(app, raise_server_exceptions=True)
+    r = client.get("/health")  # no auth header
+    assert r.status_code == 200
+
+
 def test_build_app_raises_without_token_or_allow_flag(monkeypatch):
     """build_app() must raise RuntimeError when no auth token and allow flag not set."""
     monkeypatch.delenv("DASHBOARD_AUTH_TOKEN", raising=False)
