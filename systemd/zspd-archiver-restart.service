@@ -1,0 +1,9 @@
+[Unit]
+Description=Retry ZSPD archiver if last run failed
+ConditionPathExists=!/run/zspd-archiver-success
+
+[Service]
+Type=oneshot
+User=polymarket
+Group=polymarket
+ExecStart=/bin/systemctl start zspd-archiver.service

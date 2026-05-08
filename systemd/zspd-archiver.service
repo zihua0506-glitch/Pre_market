@@ -1,0 +1,20 @@
+[Unit]
+Description=ZSPD Polymarket daily archive (VM + SQLite -> parquet -> WebDAV)
+After=network-online.target zspd-collector.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=polymarket
+Group=polymarket
+WorkingDirectory=/opt/zspd-collector
+EnvironmentFile=/opt/zspd-collector/.env
+Environment=PYTHONPATH=/opt/zspd-collector/src
+Environment=ARCHIVER_DB_DIR=/opt/zspd-collector/database
+Environment=ARCHIVER_WARM_DIR=/opt/zspd-collector/warm
+Environment=ARCHIVER_VM_URL=http://127.0.0.1:8428
+ExecStart=/opt/zspd-collector/.venv/bin/python -m archiver.main
+StandardOutput=append:/var/log/zspd-collector/archiver.log
+StandardError=append:/var/log/zspd-collector/archiver.err
+TimeoutStartSec=1800
+ExecStartPost=/bin/sh -c 'touch /run/zspd-archiver-success'

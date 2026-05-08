@@ -1,0 +1,10 @@
+[Unit]
+Description=Retry archiver every 6 h until it succeeds
+
+[Timer]
+OnUnitActiveSec=6h
+OnBootSec=10min
+Unit=zspd-archiver-restart.service
+
+[Install]
+WantedBy=timers.target

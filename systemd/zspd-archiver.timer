@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily ZSPD archiver (03:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=zspd-archiver.service
+
+[Install]
+WantedBy=timers.target
