@@ -6,6 +6,10 @@ secrets/
 .env
 .env.*
 
+# SSH private keys (config + .pub may be committed)
+ssh/polymarket_ed25519
+ssh/known_hosts
+
 # Python
 __pycache__/
 *.py[cod]

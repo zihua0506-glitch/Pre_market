@@ -1,0 +1,27 @@
+# SSH config for the polymarket-weather project.
+# Use with: ssh -F ssh/config <host>
+# This file is checked into the repo; the private key (polymarket_ed25519)
+# is gitignored.
+
+# --- root (existing identities, copied from ~/.ssh/config) ---
+Host singapore sg
+    User root
+    HostName 217.15.166.15
+    Port 22
+
+Host valkyrie val
+    User root
+    HostName 204.168.241.66
+
+# --- polymarket service user (created in Task A2/A3) ---
+Host val-pm
+    HostName 204.168.241.66
+    User polymarket
+    IdentityFile ssh/polymarket_ed25519
+    IdentitiesOnly yes
+
+Host sg-pm
+    HostName 217.15.166.15
+    User polymarket
+    IdentityFile ssh/polymarket_ed25519
+    IdentitiesOnly yes
