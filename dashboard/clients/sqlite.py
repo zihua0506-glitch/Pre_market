@@ -42,3 +42,15 @@ def market_meta(db_dir: Path, market_id: str) -> dict | None:
             "SELECT * FROM markets WHERE market_id=?", (market_id,)
         ).fetchone()
     return dict(row) if row else None
+
+
+def all_markets(db_dir: Path) -> dict[str, dict]:
+    """Return {market_id: row} for every active market. Empty dict if no DB yet."""
+    if not (db_dir / "markets.db").exists():
+        return {}
+    with sqlite3.connect(db_dir / "markets.db") as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM markets WHERE archived=0"
+        ).fetchall()
+    return {r["market_id"]: dict(r) for r in rows}

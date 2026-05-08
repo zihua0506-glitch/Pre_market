@@ -1,28 +1,191 @@
 {% extends "base.html" %}
-{% block title %}Market grid{% endblock %}
+{% block title %}Markets · ZSPD{% endblock %}
 {% block content %}
-<form method="get">
-  city: <input name="city" value="{{ city or '' }}">
-  type: <input name="contract_type" value="{{ contract_type or '' }}">
-  <button>filter</button>
-</form>
-<table hx-get="/" hx-trigger="every 10s" hx-target="closest table" hx-swap="outerHTML">
-  <thead><tr>
-    <th>market</th><th>city</th><th>type</th>
-    <th>YES bid</th><th>YES ask</th><th>NO bid</th><th>NO ask</th>
-  </tr></thead>
-  <tbody>
-  {% for m in markets %}
-    <tr>
-      <td><a href="/m/{{ m.market_id }}">{{ m.market_id }}</a></td>
-      <td>{{ m.city or '—' }}</td>
-      <td>{{ m.contract_type or '—' }}</td>
-      <td>{{ '%.3f' % (m.yes_bid or 0) }}</td>
-      <td>{{ '%.3f' % (m.yes_ask or 0) }}</td>
-      <td>{{ '%.3f' % (m.no_bid or 0) }}</td>
-      <td>{{ '%.3f' % (m.no_ask or 0) }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+
+{# helper macros #}
+{% macro num(v, decimals=3) %}{% if v is none %}<span class="text-zinc-300 dark:text-zinc-600">—</span>{% else %}{{ '%.*f' % (decimals, v) }}{% endif %}{% endmacro %}
+
+{% macro price_cell(v, kind='neutral') %}
+  {% if v is none or v == 0 %}
+    <span class="text-zinc-300 dark:text-zinc-600">—</span>
+  {% else %}
+    {% set bg = 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' if kind == 'good' else
+                'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300' if kind == 'bad' else
+                'text-zinc-900 dark:text-zinc-100' %}
+    <span class="num inline-block min-w-[3.5rem] text-right tabular-nums {% if kind != 'neutral' %}{{ bg }} px-1.5 py-0.5 rounded{% endif %}">{{ '%.3f' % v }}</span>
+  {% endif %}
+{% endmacro %}
+
+<div class="space-y-6">
+
+  {# ─── stats summary ─── #}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-3">
+      <div class="text-xs text-zinc-500 dark:text-zinc-400">total markets</div>
+      <div class="text-2xl font-semibold num">{{ total_all }}</div>
+    </div>
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-3">
+      <div class="text-xs text-zinc-500 dark:text-zinc-400">filtered</div>
+      <div class="text-2xl font-semibold num text-indigo-600 dark:text-indigo-400">{{ total_filtered }}</div>
+    </div>
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-3">
+      <div class="text-xs text-zinc-500 dark:text-zinc-400">cities</div>
+      <div class="text-2xl font-semibold num">{{ cities|length }}</div>
+    </div>
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-3">
+      <div class="text-xs text-zinc-500 dark:text-zinc-400">page</div>
+      <div class="text-2xl font-semibold num">{{ page }}<span class="text-zinc-400 text-base">/{{ pages }}</span></div>
+    </div>
+  </div>
+
+  {# ─── filter bar ─── #}
+  <form method="get" action="/" class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 space-y-3" x-data>
+
+    {# search + city + sort row #}
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+      <div class="md:col-span-5">
+        <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">search</label>
+        <input type="search" name="q" value="{{ q or '' }}" placeholder="question, slug, market id"
+               class="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+      </div>
+      <div class="md:col-span-3">
+        <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">city</label>
+        <select name="city" class="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950">
+          <option value="">all cities</option>
+          {% for c, counts in cities %}
+            <option value="{{ c }}" {{ 'selected' if city == c }}>{{ c }} · {{ counts.active }}/{{ counts.total }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">sort by</label>
+        <select name="sort" class="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950">
+          <option value="active" {{ 'selected' if sort == 'active' }}>most recent</option>
+          <option value="spread" {{ 'selected' if sort == 'spread' }}>widest spread</option>
+          <option value="yes_mid" {{ 'selected' if sort == 'yes_mid' }}>highest YES</option>
+          <option value="city" {{ 'selected' if sort == 'city' }}>city · threshold</option>
+          <option value="end_date" {{ 'selected' if sort == 'end_date' }}>end date</option>
+          <option value="threshold" {{ 'selected' if sort == 'threshold' }}>threshold °C</option>
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">end ≤ days</label>
+        <input type="number" name="end_within_days" value="{{ end_within_days }}" min="0" max="365"
+               class="w-full px-3 py-2 text-sm num rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950">
+      </div>
+    </div>
+
+    {# contract-type chips #}
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 mr-1">type:</span>
+      <label class="inline-flex">
+        <input type="radio" name="contract_type" value="" class="sr-only peer" {{ 'checked' if not contract_type }}>
+        <span class="px-3 py-1 text-xs font-medium rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 cursor-pointer transition">all</span>
+      </label>
+      {% for ct in contract_types %}
+        <label class="inline-flex">
+          <input type="radio" name="contract_type" value="{{ ct }}" class="sr-only peer" {{ 'checked' if contract_type == ct }}>
+          <span class="px-3 py-1 text-xs font-medium rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-50 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 cursor-pointer transition num">{{ ct }}</span>
+        </label>
+      {% endfor %}
+      <span class="ml-auto flex items-center gap-2">
+        <label class="inline-flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer">
+          <input type="checkbox" name="has_prices" value="1" {{ 'checked' if has_prices }}
+                 class="rounded text-indigo-600 focus:ring-indigo-500">
+          only with prices
+        </label>
+        <button type="submit" class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-600 hover:bg-indigo-700 text-white transition">
+          apply
+        </button>
+        <a href="/" class="px-3 py-1.5 text-sm rounded-md text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">reset</a>
+      </span>
+    </div>
+  </form>
+
+  {# ─── table ─── #}
+  <div id="grid-table" class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden"
+       hx-get="{{ request.url }}" hx-trigger="every 10s" hx-target="#grid-table" hx-swap="outerHTML" hx-select="#grid-table">
+    {% if markets %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-zinc-50 dark:bg-zinc-900/50 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800 sticky top-14 z-10">
+          <tr>
+            <th class="px-4 py-2.5 text-left font-medium">city</th>
+            <th class="px-4 py-2.5 text-left font-medium">type</th>
+            <th class="px-4 py-2.5 text-right font-medium">°C</th>
+            <th class="px-4 py-2.5 text-left font-medium">end</th>
+            <th class="px-4 py-2.5 text-right font-medium">YES bid</th>
+            <th class="px-4 py-2.5 text-right font-medium">YES ask</th>
+            <th class="px-4 py-2.5 text-right font-medium">NO bid</th>
+            <th class="px-4 py-2.5 text-right font-medium">NO ask</th>
+            <th class="px-4 py-2.5 text-right font-medium">spread</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {% for m in markets %}
+            {% set spread = ((m.yes_ask or 0) - (m.yes_bid or 0)) %}
+            {% set yes_mid = ((m.yes_bid or 0) + (m.yes_ask or 0)) / 2 %}
+            {% set ct = m.contract_type or '' %}
+            <tr class="hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition cursor-pointer"
+                onclick="window.location='/m/{{ m.market_id }}'">
+              <td class="px-4 py-2.5 font-medium">{{ m.city or '—' }}</td>
+              <td class="px-4 py-2.5">
+                <span class="num text-xs px-1.5 py-0.5 rounded
+                  {% if ct.startswith('high') %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300
+                  {% elif ct.startswith('low')  %}bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300
+                  {% else %}bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+                  {{ ct or '—' }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-right num font-medium">
+                {% if m.threshold_c is not none %}{{ '%g' % m.threshold_c }}°{% else %}—{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-zinc-500 dark:text-zinc-400 text-xs num">
+                {% if m.end_date %}{{ m.end_date[:10] }}{% else %}—{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-right">{{ price_cell(m.yes_bid, 'good' if (m.yes_bid or 0) > 0.5 else 'neutral') }}</td>
+              <td class="px-4 py-2.5 text-right">{{ price_cell(m.yes_ask, 'good' if (m.yes_ask or 0) > 0.5 else 'neutral') }}</td>
+              <td class="px-4 py-2.5 text-right">{{ price_cell(m.no_bid, 'bad' if (m.no_bid or 0) > 0.5 else 'neutral') }}</td>
+              <td class="px-4 py-2.5 text-right">{{ price_cell(m.no_ask, 'bad' if (m.no_ask or 0) > 0.5 else 'neutral') }}</td>
+              <td class="px-4 py-2.5 text-right num text-xs
+                {% if spread > 0.10 %}text-rose-600 dark:text-rose-400 font-medium
+                {% elif spread > 0.05 %}text-amber-600 dark:text-amber-400
+                {% else %}text-zinc-500 dark:text-zinc-400{% endif %}">
+                {% if spread > 0 %}{{ '%.3f' % spread }}{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-16 text-center">
+      <svg class="mx-auto w-12 h-12 text-zinc-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17 9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2Z"/>
+      </svg>
+      <p class="mt-3 text-zinc-500 dark:text-zinc-400">no markets match these filters</p>
+      <a href="/" class="mt-2 inline-block text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">reset filters</a>
+    </div>
+    {% endif %}
+
+    {# pagination footer #}
+    {% if pages > 1 %}
+      <div class="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 text-sm">
+        <span class="text-zinc-500 dark:text-zinc-400">
+          page {{ page }} of {{ pages }} · {{ total_filtered }} markets
+        </span>
+        <div class="flex gap-1">
+          {% set qbase = 'city=' ~ (city or '') ~ '&contract_type=' ~ (contract_type or '') ~ '&q=' ~ (q or '') ~ '&has_prices=' ~ ('1' if has_prices else '0') ~ '&end_within_days=' ~ end_within_days|string ~ '&sort=' ~ sort %}
+          {% if page > 1 %}
+            <a href="?{{ qbase }}&page={{ page - 1 }}" class="px-3 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800">prev</a>
+          {% endif %}
+          {% if page < pages %}
+            <a href="?{{ qbase }}&page={{ page + 1 }}" class="px-3 py-1 rounded border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800">next</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
 {% endblock %}

@@ -11,7 +11,7 @@ def test_replay_no_data():
         r = TestClient(build_app()).get("/replay/2025-01-01",
             headers={"Authorization": "Bearer "})
         assert r.status_code == 200
-        assert "no data" in r.text
+        assert "no warm data" in r.text
 
 
 def test_replay_renders_summary():

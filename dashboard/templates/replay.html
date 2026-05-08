@@ -1,16 +1,57 @@
 {% extends "base.html" %}
-{% block title %}replay{% endblock %}
+{% block title %}Replay {{ date or '' }}{% endblock %}
 {% block content %}
-{% if date %}
-  <h2>{{ date }}</h2>
-  {% if rows %}
-    <table><thead><tr><th>market</th><th>ticks</th></tr></thead><tbody>
-    {% for r in rows %}<tr><td>{{ r.market_id }}</td><td>{{ r.n_ticks }}</td></tr>{% endfor %}
-    </tbody></table>
-  {% else %}<p>no data for {{ date }} (try <code>scripts/restore.sh {{ date }} {{ date }}</code>)</p>{% endif %}
-{% else %}
-  <h2>days available</h2>
-  {% if days %}<ul>{% for d in days %}<li><a href="/replay/{{ d }}">{{ d }}</a></li>{% endfor %}</ul>
-  {% else %}<p>no warm data yet</p>{% endif %}
-{% endif %}
+
+<div class="space-y-5">
+
+  {% if date %}
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-semibold num">{{ date }}</h1>
+      <a href="/replay" class="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">← all days</a>
+    </div>
+    {% if rows %}
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-zinc-50 dark:bg-zinc-900/50 text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+            <tr>
+              <th class="px-4 py-2.5 text-left font-medium">market</th>
+              <th class="px-4 py-2.5 text-right font-medium">ticks</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800 num">
+            {% for r in rows %}
+              <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                <td class="px-4 py-1.5"><a href="/m/{{ r.market_id }}" class="text-indigo-600 dark:text-indigo-400 hover:underline">{{ r.market_id }}</a></td>
+                <td class="px-4 py-1.5 text-right">{{ r.n_ticks }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-8 text-center">
+        <p class="text-zinc-500 dark:text-zinc-400">no warm data for {{ date }}</p>
+        <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-500 num">try <code class="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">scripts/restore.sh {{ date }} {{ date }}</code></p>
+      </div>
+    {% endif %}
+
+  {% else %}
+    <h1 class="text-xl font-semibold">Replay days</h1>
+    {% if days %}
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        {% for d in days %}
+          <a href="/replay/{{ d }}" class="num text-center px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition">
+            {{ d }}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-8 text-center">
+        <p class="text-zinc-500 dark:text-zinc-400">no warm-tier data yet</p>
+        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-500">archiver runs daily at 03:00 UTC</p>
+      </div>
+    {% endif %}
+  {% endif %}
+
+</div>
 {% endblock %}

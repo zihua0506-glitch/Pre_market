@@ -1,26 +1,111 @@
 {% extends "base.html" %}
-{% block title %}{{ m.market_id }}{% endblock %}
+{% block title %}{{ m.city }} {{ m.contract_type }} {{ m.threshold_c }}°{% endblock %}
 {% block content %}
-<h2>{{ m.city }} {{ m.contract_type }} threshold={{ m.threshold_c }}</h2>
-<p>{{ m.question }}<br><small>ends {{ m.end_date }} · slug {{ m.slug }}</small></p>
 
-<iframe src="{{ grafana_panel }}" width="100%" height="320" frameborder="0"></iframe>
+<div class="space-y-6">
 
-<h3>L2 (latest)</h3>
-{% for side in ("yes", "no") %}
-  <h4>{{ side }}</h4>
-  {% if l2[side] %}
-    <table><thead><tr><th>side</th><th>price</th><th>size</th></tr></thead><tbody>
-    {% for b in l2[side]["bids"] %}<tr><td>bid</td><td>{{ b[0] }}</td><td>{{ b[1] }}</td></tr>{% endfor %}
-    {% for a in l2[side]["asks"] %}<tr><td>ask</td><td>{{ a[0] }}</td><td>{{ a[1] }}</td></tr>{% endfor %}
-    </tbody></table>
-  {% else %}<p>no L2 yet</p>{% endif %}
-{% endfor %}
+  {# header card #}
+  <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-5">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ m.city }}</span>
+          <span class="num text-xs px-1.5 py-0.5 rounded
+            {% if (m.contract_type or '').startswith('high') %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300
+            {% elif (m.contract_type or '').startswith('low')  %}bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300
+            {% else %}bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">
+            {{ m.contract_type }}
+          </span>
+          <span class="num text-sm font-semibold">{{ '%g' % m.threshold_c }}°C</span>
+        </div>
+        <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ m.question }}</h1>
+        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400 num">
+          ends {{ m.end_date or '—' }} · slug <span class="font-mono">{{ m.slug }}</span>
+        </p>
+      </div>
+      <a href="/" class="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">← all markets</a>
+    </div>
+  </div>
 
-<h3>Recent trades</h3>
-<table><thead><tr><th>ts</th><th>side</th><th>price</th><th>size</th></tr></thead><tbody>
-{% for t in trades %}
-  <tr><td>{{ t.ts }}</td><td>{{ t.side }}</td><td>{{ t.price }}</td><td>{{ t.size }}</td></tr>
-{% endfor %}
-</tbody></table>
+  {# Grafana iframe #}
+  <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+    <iframe src="{{ grafana_panel }}" class="w-full h-80 border-0"></iframe>
+  </div>
+
+  {# L2 + trades grid #}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    {% for side in ("yes", "no") %}
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+          <h3 class="text-sm font-semibold uppercase tracking-wide
+            {% if side == 'yes' %}text-emerald-700 dark:text-emerald-400{% else %}text-rose-700 dark:text-rose-400{% endif %}">
+            {{ side }} book
+          </h3>
+        </div>
+        {% if l2[side] %}
+          <table class="w-full text-sm">
+            <thead class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+              <tr>
+                <th class="px-3 py-2 text-left">side</th>
+                <th class="px-3 py-2 text-right">price</th>
+                <th class="px-3 py-2 text-right">size</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800 num">
+              {% for a in l2[side]["asks"]|reverse %}
+                <tr class="text-rose-700 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-950/10">
+                  <td class="px-3 py-1.5 text-xs">ask</td>
+                  <td class="px-3 py-1.5 text-right">{{ '%.3f' % a[0] }}</td>
+                  <td class="px-3 py-1.5 text-right text-zinc-500 dark:text-zinc-400">{{ '%.0f' % a[1] }}</td>
+                </tr>
+              {% endfor %}
+              {% for b in l2[side]["bids"] %}
+                <tr class="text-emerald-700 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/10">
+                  <td class="px-3 py-1.5 text-xs">bid</td>
+                  <td class="px-3 py-1.5 text-right">{{ '%.3f' % b[0] }}</td>
+                  <td class="px-3 py-1.5 text-right text-zinc-500 dark:text-zinc-400">{{ '%.0f' % b[1] }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="px-4 py-8 text-sm text-zinc-400 dark:text-zinc-500 text-center">no L2 captured yet</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {# trades panel #}
+    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
+      <div class="px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-800">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">recent trades</h3>
+      </div>
+      {% if trades %}
+        <table class="w-full text-sm">
+          <thead class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-100 dark:border-zinc-800">
+            <tr>
+              <th class="px-3 py-2 text-left">ts</th>
+              <th class="px-3 py-2 text-left">side</th>
+              <th class="px-3 py-2 text-right">price</th>
+              <th class="px-3 py-2 text-right">size</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800 num">
+            {% for t in trades %}
+              <tr>
+                <td class="px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400">{{ t.ts[11:19] if t.ts else '' }}</td>
+                <td class="px-3 py-1.5 text-xs {% if t.side == 'yes' %}text-emerald-700 dark:text-emerald-400{% else %}text-rose-700 dark:text-rose-400{% endif %}">{{ t.side }}</td>
+                <td class="px-3 py-1.5 text-right">{{ '%.3f' % t.price }}</td>
+                <td class="px-3 py-1.5 text-right text-zinc-500 dark:text-zinc-400">{{ '%.0f' % t.size }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="px-4 py-8 text-sm text-zinc-400 dark:text-zinc-500 text-center">no trades yet</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 {% endblock %}

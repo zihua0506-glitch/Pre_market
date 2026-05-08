@@ -31,5 +31,7 @@ def test_grid_filter_by_city():
         client = TestClient(build_app())
         r = client.get("/?city=ZSPD", headers={"Authorization": "Bearer "})
         assert r.status_code == 200
-        assert "ZSPD" in r.text
-        assert "KJFK" not in r.text
+        # Row count: filtered to 1 (KJFK still appears in the city <option>
+        # dropdown — the assertion below is on the rendered table only).
+        assert r.text.count('onclick="window.location=\'/m/m1\'"') == 1
+        assert r.text.count('onclick="window.location=\'/m/m2\'"') == 0
