@@ -44,6 +44,7 @@ def _dump_markets_snapshot(db_path: Path, dest: Path) -> int:
         rows = conn.execute("SELECT * FROM markets").fetchall()
     if not rows:
         return 0
+    dest.parent.mkdir(parents=True, exist_ok=True)
     pl.DataFrame([dict(r) for r in rows]).write_parquet(dest, compression="zstd")
     return len(rows)
 
@@ -76,12 +77,12 @@ async def run() -> int:
     n_tr = _dump_sqlite_to_parquet(cfg.db_dir / "trades.db",
                                    "trades", "ts", yesterday, out_dir / "trades.parquet")
     log.info("  %d trade rows", n_tr)
-    n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
-    log.info("  %d markets snapshot rows", n_mk)
-
     if n_prices == 0 and n_ob == 0 and n_tr == 0:
         log.warning("no data for %s; aborting before cold sync", yesterday)
         return 0
+
+    n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
+    log.info("  %d markets snapshot rows", n_mk)
 
     _rclone_sync(out_dir, cfg.rclone_remote)
 
