@@ -18,4 +18,5 @@ StandardOutput=append:/var/log/zspd-collector/archiver.log
 StandardError=append:/var/log/zspd-collector/archiver.err
 TimeoutStartSec=1800
 RuntimeDirectory=zspd-archiver
+RuntimeDirectoryPreserve=yes
 ExecStartPost=/bin/sh -c 'touch /run/zspd-archiver/success'
