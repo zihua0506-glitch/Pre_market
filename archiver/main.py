@@ -66,36 +66,39 @@ async def run() -> int:
     cfg = load()
     yesterday = date.today() - timedelta(days=1)
     out_dir = cfg.warm_dir / yesterday.isoformat()
+    rc = 0
+    try:
+        log.info("export VM ticks for %s", yesterday)
+        n_prices = await export_day(cfg.vm_url, yesterday, out_dir / "prices.parquet")
+        log.info("  %d price rows", n_prices)
 
-    log.info("export VM ticks for %s", yesterday)
-    n_prices = await export_day(cfg.vm_url, yesterday, out_dir / "prices.parquet")
-    log.info("  %d price rows", n_prices)
+        n_ob = _dump_sqlite_to_parquet(cfg.db_dir / "orderbook.db",
+                                       "l2_snapshot", "ts", yesterday, out_dir / "orderbook.parquet")
+        log.info("  %d L2 rows", n_ob)
+        n_tr = _dump_sqlite_to_parquet(cfg.db_dir / "trades.db",
+                                       "trades", "ts", yesterday, out_dir / "trades.parquet")
+        log.info("  %d trade rows", n_tr)
 
-    n_ob = _dump_sqlite_to_parquet(cfg.db_dir / "orderbook.db",
-                                   "l2_snapshot", "ts", yesterday, out_dir / "orderbook.parquet")
-    log.info("  %d L2 rows", n_ob)
-    n_tr = _dump_sqlite_to_parquet(cfg.db_dir / "trades.db",
-                                   "trades", "ts", yesterday, out_dir / "trades.parquet")
-    log.info("  %d trade rows", n_tr)
-    if n_prices == 0 and n_ob == 0 and n_tr == 0:
-        log.warning("no data for %s; aborting before cold sync", yesterday)
-        return 0
-
-    n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
-    log.info("  %d markets snapshot rows", n_mk)
-
-    _rclone_sync(out_dir, cfg.rclone_remote)
-
-    # cleanup
-    for p in cleanup.old_warm_dirs(cfg.warm_dir, cfg.warm_retention_days):
-        log.info("removing old warm dir %s", p)
-        shutil.rmtree(p)
-    n_ob_d = cleanup.delete_old_sqlite_rows(cfg.db_dir / "orderbook.db",
-                                            "l2_snapshot", "ts", cfg.hot_retention_days)
-    n_tr_d = cleanup.delete_old_sqlite_rows(cfg.db_dir / "trades.db",
-                                            "trades", "ts", cfg.hot_retention_days)
-    log.info("cleaned %d L2 rows, %d trade rows from hot", n_ob_d, n_tr_d)
-    return 0
+        if n_prices == 0 and n_ob == 0 and n_tr == 0:
+            log.warning("no data for %s; skipping cold sync", yesterday)
+        else:
+            n_mk = _dump_markets_snapshot(cfg.db_dir / "markets.db", out_dir / "markets.parquet")
+            log.info("  %d markets snapshot rows", n_mk)
+            _rclone_sync(out_dir, cfg.rclone_remote)
+    except Exception:
+        log.exception("archiver pipeline failed")
+        rc = 1
+    finally:
+        # cleanup always runs — even on empty-day or error paths
+        for p in cleanup.old_warm_dirs(cfg.warm_dir, cfg.warm_retention_days):
+            log.info("removing old warm dir %s", p)
+            shutil.rmtree(p)
+        n_ob_d = cleanup.delete_old_sqlite_rows(cfg.db_dir / "orderbook.db",
+                                                "l2_snapshot", "ts", cfg.hot_retention_days)
+        n_tr_d = cleanup.delete_old_sqlite_rows(cfg.db_dir / "trades.db",
+                                                "trades", "ts", cfg.hot_retention_days)
+        log.info("cleaned %d L2 rows, %d trade rows from hot", n_ob_d, n_tr_d)
+    return rc
 
 
 if __name__ == "__main__":
