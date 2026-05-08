@@ -8,6 +8,7 @@ from dashboard.auth import bearer_auth
 from dashboard.config import load
 from dashboard.views import grid as grid_view
 from dashboard.views import market as market_view
+from dashboard.views import strategy as strategy_view
 
 
 def build_app() -> FastAPI:
@@ -24,6 +25,7 @@ def build_app() -> FastAPI:
 
     app.include_router(grid_view.router, dependencies=[Depends(auth)])
     app.include_router(market_view.router, dependencies=[Depends(auth)])
+    app.include_router(strategy_view.router, dependencies=[Depends(auth)])
     return app
 
 

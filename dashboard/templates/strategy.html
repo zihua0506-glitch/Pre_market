@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}strategy{% endblock %}
+{% block content %}
+{% if s.error %}<div class="banner err">valkyrie: {{ s.error }}</div>{% endif %}
+<h2>zspd-strategy.service</h2>
+<pre>{{ (s.strategy or {}) | tojson(indent=2) }}</pre>
+<h2>positions today</h2>
+{% if s.positions_today %}
+<table><thead><tr>
+{% for k in s.positions_today[0].keys() %}<th>{{ k }}</th>{% endfor %}
+</tr></thead><tbody>
+{% for p in s.positions_today %}<tr>
+{% for v in p.values() %}<td>{{ v }}</td>{% endfor %}
+</tr>{% endfor %}
+</tbody></table>
+{% else %}<p>no positions today</p>{% endif %}
+{% endblock %}
