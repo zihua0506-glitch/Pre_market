@@ -81,7 +81,9 @@ abandons the funds.
 | Service user | `polymarket` (uid 1000), all `/opt/zspd-*` chowned; sudo NOPASSWD scoped to systemctl/journalctl only |
 | `zspd-archive.timer` | ✅ enabled, active (as polymarket). Next fire 16:30 UTC daily. archive.sh patched to use `/home/polymarket/.ssh/zspd_deploy`. |
 | `zspd-collector.service` | ✅ enabled, active (NEW). asyncio orchestrator: gamma discovery (24 h) + WS subscriber (3 s ticks) + L2 poller (5 min) + Prom `/metrics` on 127.0.0.1:8091. ~1360 markets across 30+ cities. |
-| `zspd-dashboard.service` | ✅ enabled, active (REWRITTEN). FastAPI on 127.0.0.1:8090 with 4 routes (grid / market / strategy / replay), bearer auth (`DASHBOARD_AUTH_TOKEN` in `.env`). |
+| `zspd-dashboard.service` | ✅ enabled, active (REWRITTEN). FastAPI on 127.0.0.1:8090 with 4 routes (grid / market / strategy / replay). Bearer auth disabled — sits behind NPM Basic Auth (see below). |
+| `zspd-dashboard-tunnel.service` | ✅ enabled, active. autossh `singapore→artoria:172.20.0.1:8190` (key `~polymarket/.ssh/artoria_tunnel`, restricted to port-forwarding only). |
+| Public URL | **https://dashboard.tatapai.site** (NPM proxy host id=42 on artoria, Let's Encrypt cert id=7 expires 2026-08-06, HTTP→HTTPS redirect). Basic Auth user `chivier`. Password in NPM access list id=1 + recorded in `/opt/zspd-dashboard/.env` comments. |
 | `zspd-archiver.timer` | ✅ enabled, active (NEW). 03:00 UTC daily oneshot: VM + SQLite → parquet → rclone → WebDAV → cleanup (hot 30 d, warm 7 d). |
 | `zspd-archiver-restart.timer` | ✅ enabled, active. Retries archiver every 6 h until `/run/zspd-archiver/success` exists. |
 | `victoriametrics.service` | ✅ enabled, active (NEW). v1.142.0 single-binary, 127.0.0.1:8428, retention 30 d, scrapes collector at 3 s. |
