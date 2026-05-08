@@ -1,0 +1,7 @@
+body { font-family: -apple-system, sans-serif; margin: 0; padding: 1rem; }
+header { padding: 0.5rem; border-bottom: 1px solid #ddd; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.4rem; border-bottom: 1px solid #eee; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+.edge-pos { color: #0a7d20; }
+.edge-neg { color: #c1390a; }
