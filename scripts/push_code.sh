@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Push the current repo to val and/or singapore via rsync.
 # Usage: scripts/push_code.sh val|singapore|both [--dry-run] [--restart]
-set -euo pipefail
+# Note: not using `set -u` because macOS ships bash 3.2 which mishandles
+# empty-array expansion under `nounset`.
+set -eo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SSH_CFG="$REPO_ROOT/ssh/config"
