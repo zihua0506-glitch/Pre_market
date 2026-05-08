@@ -7,9 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Tailwind Play CDN (JIT in browser; doesn't support SRI by design — but only loads once page is served by NPM Basic Auth, so threat surface is small). -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/htmx.org@2.0.3"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<!-- htmx + alpine pinned with SRI (treat as defence-in-depth against CDN compromise). -->
+<script src="https://unpkg.com/htmx.org@2.0.3/dist/htmx.min.js"
+        integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq"
+        crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
+        integrity="sha384-l8f0VcPi/M1iHPv8egOnY/15TDwqgbOR1anMIJWvU6nLRgZVLTLSaNqi/TOoT5Fh"
+        crossorigin="anonymous"></script>
 <script>
   // Tailwind config — extend the default palette + dark mode via system preference.
   tailwind.config = {
