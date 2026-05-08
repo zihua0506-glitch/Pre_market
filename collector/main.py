@@ -2,7 +2,11 @@
 from __future__ import annotations
 import asyncio
 import logging
+import os
 import signal
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 from collector import db, discovery, l2
 from collector.config import load
 from collector.http import build_app
@@ -10,6 +14,28 @@ from collector.ws import LatestStore, ws_loop
 import uvicorn
 
 log = logging.getLogger(__name__)
+
+
+async def health_loop(cfg, store: LatestStore, stop: asyncio.Event, log_path: Path) -> None:
+    """Write a 30s heartbeat to *log_path* with WS state and time-since-last-message."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    while not stop.is_set():
+        connected = store.connected
+        stale = time.time() - store.last_message_ts if store.last_message_ts else None
+        line = (
+            f"{datetime.now(timezone.utc).isoformat()} "
+            f"ws_connected={connected} "
+            f"ws_stale_s={stale}\n"
+        )
+        try:
+            with open(log_path, "a") as f:
+                f.write(line)
+        except OSError:
+            pass  # log dir may not be writable; don't crash collector
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=cfg.health_interval_s)
+        except asyncio.TimeoutError:
+            pass
 
 
 async def main() -> None:
@@ -55,6 +81,10 @@ async def main() -> None:
         app, host=cfg.http_host, port=cfg.http_port, log_level="warning"
     ))
 
+    health_log_path = Path(
+        os.getenv("COLLECTOR_HEALTH_LOG", "/var/log/zspd-collector/health.log")
+    )
+
     tasks = [
         asyncio.create_task(server.serve(), name="http"),
         asyncio.create_task(
@@ -66,6 +96,9 @@ async def main() -> None:
                 cfg, stop, tokens_changed=tokens_changed, prune=_prune
             ),
             name="discovery",
+        ),
+        asyncio.create_task(
+            health_loop(cfg, store, stop, health_log_path), name="health"
         ),
     ]
     await stop.wait()
