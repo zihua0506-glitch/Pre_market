@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import polars as pl
 from archiver import cleanup
+from archiver.cleanup import _validated as _validated_table
 from archiver.config import load
 from archiver.vm_export import export_day
 
@@ -18,6 +19,7 @@ log = logging.getLogger(__name__)
 
 def _dump_sqlite_to_parquet(db_path: Path, table: str, ts_col: str,
                              day: date, dest: Path) -> int:
+    table, ts_col = _validated_table(table, ts_col)
     if not db_path.exists():
         return 0
     start = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc).isoformat()
