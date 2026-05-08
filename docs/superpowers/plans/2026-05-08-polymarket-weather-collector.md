@@ -15,6 +15,7 @@
 - Commands prefixed `local$` run on the dev Mac; `val$` on valkyrie; `sg$` on singapore. Otherwise default is local Mac.
 - Tests for new Python code use `pytest` (added as dev dep). Existing repo has no test suite — we introduce one for new packages only.
 - "Commit" steps use a HEREDOC commit body. Use the `semantic-git-committer` style verbs (feat/fix/docs/chore/refactor).
+- **SSH config lives at `ssh/config` in the repo** (not `~/.ssh/config`). Every `ssh val-pm`, `ssh sg-pm`, `ssh valkyrie`, `ssh singapore`, `scp ...` in this plan should be read as `ssh -F ssh/config <alias>` / `scp -F ssh/config ...`. The private key (`ssh/polymarket_ed25519`) is gitignored; the public half is committed. Set `export SSH_CONFIG_FILE=ssh/config` (informational only — OpenSSH ignores it; pass `-F` explicitly) or wrap with a tiny shell helper.
 
 ---
 
@@ -22,12 +23,13 @@
 
 Establishes the `polymarket` service user on both servers and the local `push_code.sh` deploy helper. Phase A is the riskiest phase because it touches the live wallet plumbing on valkyrie. Each task is independently verifiable; rollback is `chown` back to root and revert the systemd `User=` line.
 
-### Task A1: Generate the `polymarket` SSH key and add SSH config aliases
+### Task A1: Generate the `polymarket` SSH key and add SSH config aliases ✅ done (commit `1a49945`)
 
-**Files:**
-- Create: `~/.ssh/polymarket_ed25519` (key, gitignored — outside repo)
-- Create: `~/.ssh/polymarket_ed25519.pub`
-- Modify: `~/.ssh/config`
+**Files (as actually built — keys live in repo, not `~/.ssh/`):**
+- Create: `ssh/polymarket_ed25519` (gitignored)
+- Create: `ssh/polymarket_ed25519.pub` (committed)
+- Create: `ssh/config` (committed — root + polymarket aliases for val/singapore)
+- Modify: `.gitignore` (exclude `ssh/polymarket_ed25519` and `ssh/known_hosts`)
 
 - [ ] **Step 1: Generate the keypair**
 
