@@ -1,0 +1,21 @@
+[Unit]
+Description=ZSPD Polymarket weather collector (WS subscriber + Prometheus exposer)
+After=network-online.target victoriametrics.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=polymarket
+Group=polymarket
+WorkingDirectory=/opt/zspd-collector
+EnvironmentFile=/opt/zspd-collector/.env
+Environment=COLLECTOR_DB_DIR=/opt/zspd-collector/database
+Environment=PYTHONPATH=/opt/zspd-collector/src
+ExecStart=/opt/zspd-collector/.venv/bin/python -m collector.main
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/zspd-collector/collector.log
+StandardError=append:/var/log/zspd-collector/collector.err
+
+[Install]
+WantedBy=multi-user.target
