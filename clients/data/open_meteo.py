@@ -32,7 +32,7 @@ from typing import Any, Optional
 
 import requests
 
-ROOT       = Path(__file__).resolve().parent.parent
+ROOT       = Path(__file__).resolve().parent.parent.parent
 WEATHER_DB = ROOT / "database" / "weather_om.db"
 
 LAT, LON = 31.1443, 121.8083   # ZSPD — Shanghai Pudong Airport

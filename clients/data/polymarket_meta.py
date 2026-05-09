@@ -20,7 +20,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
 GAMMA_API = "https://gamma-api.polymarket.com"
-DB_PATH = Path(__file__).resolve().parent.parent / "database" / "token.db"
+DB_PATH = Path(__file__).resolve().parent.parent.parent / "database" / "token.db"
 LOOKBACK_DAYS = 150  # ~ 5 months
 
 QUESTION_RE = re.compile(

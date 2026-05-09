@@ -23,7 +23,7 @@ API_URL = "https://api.weather.com/v1/location/{loc}/observations/historical.jso
 API_KEY = "6532d6454b8aa370768e63d6ba5a832e"  # public key used by wunderground.com frontend
 
 SHANGHAI_TZ = timezone(timedelta(hours=8))
-DB_PATH = Path(__file__).resolve().parent.parent / "database" / "standard.db"
+DB_PATH = Path(__file__).resolve().parent.parent.parent / "database" / "standard.db"
 
 HEADERS = {
     "User-Agent": (
